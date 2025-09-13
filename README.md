@@ -107,3 +107,13 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 **Documentation & File Sharing**: Shared OneDrive folder for all project documentation, design assets, and deliverables. Trello will be used for task tracking, and team members will also use email for formal updates when necessary. 
 
 **Code Repository**: A private GitHub or GitLab repository will be used for version control and collaborative development. 
+
+## Basic Scripts for running Frontend (React.js)
+- `npm start` - Start development server (now with TypeScript support)
+- `npm run build` - Build production bundle with TypeScript compilation
+- `npm test` - Run tests with TypeScript support
+
+## Basic Scripts for running Backend (Express.js)
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Run the compiled production server
