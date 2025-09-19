@@ -6,9 +6,9 @@ services:
     environment:
       POSTGRES_DB: ledgerdb
       POSTGRES_USER: ledgeradmin
-      POSTGRES_PASSWORD: ${DB_PASS}  # ← Reads from .env
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  # ← Reads from .env
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -34,7 +34,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=ledgerdb
       - DB_USER=ledgeradmin
-      - DB_PASS=${DB_PASS}  # ← Reads from .env
+      - DB_PASS=${DB_PASSWORD}  # ← Reads from .env
     depends_on:
       db:
         condition: service_healthy
