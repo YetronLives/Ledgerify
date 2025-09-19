@@ -1,0 +1,48 @@
+services:
+  # PostgreSQL 17 Database
+  db:
+    image: postgres:17-alpine
+    container_name: ledger-db
+    environment:
+      POSTGRES_DB: ledgerdb
+      POSTGRES_USER: ledgeradmin
+      POSTGRES_PASSWORD: ${DB_PASS}  # ← Reads from .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Express.js Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ledger-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=ledgerdb
+      - DB_USER=ledgeradmin
+      - DB_PASS=${DB_PASS}  # ← Reads from .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - /app/node_modules  
+
+volumes:
+  pgdata:
+    driver: local
