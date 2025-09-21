@@ -1,136 +1,132 @@
 # Ledgerify
 Ledgerify is a secure, web-based accounting application that enables users to manage core financial processes while ensuring compliance, integrity, and usability. The system is designed for small businesses, managers, and accountants who need efficient tools to track financial transactions and generate reports.
 
-<br>
-
 ## Team Name: The Five Ledgers
+* Meriam Eddaoudi
+* Shams Hasan
+* DJ Berzas
+* Alix Teschner
+* Constant Nortey
+ 
+## Project Team Roles and Responsibilities 
 
-<br>
+**Project Manager / Lead Developer (Shams)**: Oversees project timeline, integration, and deliverables. 
 
-## Team Members
-- Meriam Eddaoudi
-- Shams Hasan
-- DJ Berzas
-- Alix Teschner
-- Constant Nortey
+**Frontend Developers (Alix and Meriam)**: Implements UI with React.js. 
+
+**Backend Developers (DJ and Constant)**: Handles server-side logic with Node.js/Express. 
+
+**Database / Cloud Engineers (Dj and Shams)**: Manages Firebase setup, data, and deployment. 
+
+**Tester / QA Engineers (Alix and Constant)**: Tests functionality, usability, and ensures deliverables meet requirements. 
+
+---
 
 ## System Modules (Features & Functional Requirements) 
 
 ### Secure Authentication & User Management 
 
-- Password Policies: Strong password rules (length, complexity, expiration, history, recovery). 
-
-- Role-Based Access: Three user roles: Administrator, Manager, and Regular User; each with distinct permissions and views. 
+* Password Policies: Strong password rules (length, complexity, expiration, history, recovery). 
+* Role-Based Access: Three user roles: Administrator, Manager, and Regular User; each with distinct permissions and views. 
 
 ### Chart of Accounts Management 
 
-- Creation & Management: Create and manage a chart of accounts with unique validation. 
-
-- Account Deactivation: Accounts cannot be deleted but can be marked inactive. 
-
-- Reporting: Generate a report of all accounts in the chart of accounts. 
+* Creation & Management: Create and manage a chart of accounts with unique validation. 
+* Account Deactivation: Accounts cannot be deleted but can be marked inactive. 
+* Reporting: Generate a report of all accounts in the chart of accounts. 
 
 ### Journalizing Transactions 
 
-- Validation: Debit/credit balance must be enforced before saving. 
-
-- Flexibility: Support multiple debits and credits per transaction. 
-
-- Data Integrity: Only accounts from the chart of accounts can be used, with a searchable dropdown. 
-
-- Documentation: Attach supporting source documents to transactions. 
+* Validation: Debit/credit balance must be enforced before saving. 
+* Flexibility: Support multiple debits and credits per transaction. 
+* Data Integrity: Only accounts from the chart of accounts can be used, with a searchable dropdown. 
+* Documentation: Attach supporting source documents to transactions. 
 
 ### Transaction Approval Workflow 
 
-- Approval Process: Transactions must be approved by managers before posting. 
-
-- Transparency: Rejected transactions remain visible for review and correction. 
+* Approval Process: Transactions must be approved by managers before posting. 
+* Transparency: Rejected transactions remain visible for review and correction. 
 
 ### Financial Reporting 
 
-- Trial Balance: Includes only accounts with balances greater than zero. 
-
-- Core Statements: Generate Income Statement, Balance Sheet, and Cash Flow Statement. 
-
-- Accessibility: Reports accessible from the main navigation menu. 
+* Trial Balance: Includes only accounts with balances greater than zero. 
+* Core Statements: Generate Income Statement, Balance Sheet, and Cash Flow Statement. 
+* Accessibility: Reports accessible from the main navigation menu. 
 
 ### Ratio Analysis 
 
-- Calculation: Compute key ratios (profitability, liquidity, solvency, efficiency). 
-
-- Decision Support: Highlight out-of-range values automatically for analysis. 
+* Calculation: Compute key ratios (profitability, liquidity, solvency, efficiency). 
+* Decision Support: Highlight out-of-range values automatically for analysis. 
 
 ### Usability Features 
 
-- Built-in Help: Searchable help system integrated within the app. 
-
-- Navigation: A clear table of contents to access modules quickly. 
-
-- Cross-Platform Testing: Ensure responsiveness across devices (computers, tablets) and browsers (Chrome, Safari, Firefox, Edge). 
-
-<br>
+* Built-in Help: Searchable help system integrated within the app. 
+* Navigation: A clear table of contents to access modules quickly. 
+* Cross-Platform Testing: Ensure responsiveness across devices (computers, tablets) and browsers (Chrome, Safari, Firefox, Edge).
+  
+---
 
 ## Technology Stack 
 
-**Frontend**: React.js for a responsive and interactive UI. 
+**Frontend**: React.js and TypeScript for a responsive and interactive UI. 
 
-**Backend**: Node.js with Express for server-side logic. Jest for writing unit tests 
+**Backend**: Node.js with Express for server-side logic - Jest for writing unit tests.
 
-**Database**: Firebase Firestore for real-time, scalable data storage. 
+**Database**: PostgreSQL for real-time, scalable data storage. 
 
-**Authentication & Security**: Firebase Auth for secure user management, roles, and password policies. 
+**Authentication & Security**: JWT for secure user management, roles, and password policies. 
 
-**Deployment**: AWS or Firebase Hosting for scalable and reliable deployment. 
+**Deployment**: Render for scalable and reliable deployment. 
 
-<br>
- 
-## Project Team Roles and Responsibilities 
+---
 
-**Project Manager / Lead Developer (Meriam)**: Oversees project timeline, integration, and deliverables. 
+## Basic Scripts for running Frontend (React.js)
+- `npm start` - Start development server (now with TypeScript support)
+- `npm run build` - Build production bundle with TypeScript compilation
+- `npm test` - Run tests with TypeScript support
 
-**Frontend Developer (Alix and Meriam)**: Implements UI with React.js. 
+## Basic Scripts for running Backend (Express.js)
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Run the compiled production server
 
-**Backend Developer (DJ and Constant)**: Handles server-side logic with Node.js/Express. 
+## Local Setup
 
-**Database / Cloud Engineer (Dj and Shams)**: Manages Firebase setup, data, and deployment. 
+**Option 1 (Standard): Using Docker**
+1. [Install Docker](https://www.docker.com/products/docker-desktop/)
 
-**Tester / QA Engineer (Shams and Constant)**: Tests functionality, usability, and ensures deliverables meet requirements. 
+2. Clone the repository
+   * Copy and paste this command into terminal: ```git clone https://github.com/YetronLives/Ledgerify.git```
+   * Then navigate into the project: ```cd ledgerify```
 
-<br>
+3. Configure Environment
+   * Rename the example environment file:
+   ```mv .env.example .env```
+   * add your credentials to the blank variables.
 
-## Project Team Communications Channel (Method agreed upon to communicate) (Due Sept 6th) 
+4. Start the Application
+   * Run: ```docker compose up``` , then visit http://localhost:3000/
+   
+**Option 2: Frontend Only (Mocking Data Mode)**
 
-**Primary Communication**: GroupMe (for daily updates, quick questions, and real-time collaboration). 
+1. [Install Node.js](https://nodejs.org/en)
 
-**Weekly Meetings**: One-hour team meeting every Monday at 10:00 AM via Microsoft Teams calls to review progress, resolve blockers, and plan next steps. 
+2. Clone the repository
+   * Copy and paste this command into terminal: ```git clone https://github.com/YetronLives/Ledgerify.git```
+   * Then navigate into the project: ```cd ledgerify```
 
-**Documentation & File Sharing**: Shared OneDrive folder for all project documentation, design assets, and deliverables. Trello will be used for task tracking, and team members will also use email for formal updates when necessary. 
+3. Install dependencies
+   * Navigate to the "frontend" folder in the repository.
+   * Open the terminal within that folder (Make sure the folder you opened contains the package.json file).
+   * Run ```npm install``` in the terminal.
+This will install all necessary packages, including React.
 
-**Code Repository**: A private GitHub or GitLab repository will be used for version control and collaborative development. 
+4. Run the application
+   * After the installation is complete, run ```npm start``` in the terminal.
+This will start the application in your browser.
+If it doesn't come up automatically, navigate to http://localhost:3000/
 
-## How to set up locally
-
-**Frontend**: 
-
-*Step 1: Install Node.js*
-Start by making sure you have Node.js installed on your system
-Node.js: [Download & Install Node.js](https://nodejs.org/en) (which includes npm)
-
-*Step 2: Clone the repository*
-Using Github Desktop will likely be the easiest way to do this, as well as making it easy to commit changes
-You can also use your browser or download the zip file
-
-*Step 3: Install dependencies*
-Navigate to the "frontend" folder in the repository.
-Open the terminal within that folder (Make sure the folder you opened contains the package.json file)
-Type "npm install" into the terminal
-This will install all necessary packages, including React
-
-*Step 4: Run the application*
-After the installation is complete, type "npm start" into the terminal
-This should automatically start the application in your browser
-If it doesn't come up automatically, go to http://localhost:3000/
-
-*Step 5: Using the application*
-Now that you can open the appplication, you can test it using the mock data provided
-The mock data will be in the App.jsx file, it provides multiple users from each role and account status
+5. Using the application
+   * Now that you have accessed the application, you can test it using the user data mocks provided in the App.jsx file.
+  
+   Note: This mode runs without a backend. You’ll only see mocked or public UI components. To experience login, user approval, and full features, use Option 1 (Docker).
