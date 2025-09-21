@@ -108,12 +108,48 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 **Code Repository**: A private GitHub or GitLab repository will be used for version control and collaborative development. 
 
-## Basic Scripts for running Frontend (React.js)
-- `npm start` - Start development server (now with TypeScript support)
-- `npm run build` - Build production bundle with TypeScript compilation
-- `npm test` - Run tests with TypeScript support
+## How to set up locally
 
-## Basic Scripts for running Backend (Express.js)
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Run the compiled production server
+**Frontend**: 
+
+*Step 1: Install Node.js*
+
+Start by making sure you have Node.js installed on your system
+
+Node.js: [Download & Install Node.js](https://nodejs.org/en) (which includes npm)
+
+
+*Step 2: Clone the repository*
+
+Using Github Desktop will likely be the easiest way to do this, as well as making it easy to commit changes
+
+You can also use your browser or download the zip file
+
+
+*Step 3: Install dependencies*
+
+Navigate to the "frontend" folder in the repository.
+
+Open the terminal within that folder (Make sure the folder you opened contains the package.json file)
+
+Type "npm install" into the terminal
+
+This will install all necessary packages, including React
+
+
+*Step 4: Run the application*
+
+After the installation is complete, type "npm start" into the terminal
+
+This should automatically start the application in your browser
+
+If it doesn't come up automatically, go to http://localhost:3000/
+
+
+*Step 5: Using the application*
+
+Now that you can open the appplication, you can test it using the mock data provided
+
+The mock data will be in the App.jsx file, it provides multiple users from each role and account status
+
+Currently, all users usernames will be their name and passwords will be "ledger1!"
