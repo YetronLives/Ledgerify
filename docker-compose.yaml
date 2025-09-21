@@ -4,8 +4,8 @@ services:
     image: postgres:17-alpine
     container_name: ledger-db
     environment:
-      POSTGRES_DB: ledgerdb
-      POSTGRES_USER: ledgeradmin
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}  # ← Reads from .env
     ports:
       - "5433:5432"
@@ -30,10 +30,10 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DB_HOST=db
+      - DB_HOST=${DB_HOST}
       - DB_PORT=5432
-      - DB_NAME=ledgerdb
-      - DB_USER=ledgeradmin
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASSWORD}  # ← Reads from .env
     depends_on:
       db:
