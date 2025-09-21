@@ -5,26 +5,33 @@ function EditUserForm({ user, close, updateUser }) {
     const [isLoading, setIsLoading] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
     const formRef = useRef(null);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+
         const formData = new FormData(formRef.current);
-        const updatedUserData = Object.fromEntries(formData.entries());
-        
-        // Call the updateUser function passed from the parent
-        updateUser({ username: user.username, ...updatedUserData });
+        const updatedUserData = {
+            fullName: formData.get('fullName'),
+            email: formData.get('email'),
+            role: formData.get('role'),
+            status: formData.get('status'),
+        };
+
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        updateUser(user.username, updatedUserData);
 
         setIsLoading(false);
         setShowNotification(true);
+
         setTimeout(() => {
-            setShowNotification(false);
             close();
-        }, 3000);
+        }, 2000);
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50" onClick={close}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
             <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
                     Edit User: {user.fullName}
@@ -86,6 +93,9 @@ function EditUserForm({ user, close, updateUser }) {
                             <option value="Suspended">Suspended</option>
                         </select>
                     </div>
+                    {showNotification && (
+                        <div className="text-center text-green-600 font-semibold mt-4">Changes saved successfully!</div>
+                    )}
                     <div className="flex justify-end space-x-2 pt-4">
                         <button
                             type="button"
@@ -104,11 +114,6 @@ function EditUserForm({ user, close, updateUser }) {
                         </button>
                     </div>
                 </form>
-                {showNotification && (
-                    <div className="absolute inset-x-0 bottom-0 m-4 p-4 rounded-lg bg-green-500 text-white text-center shadow-lg">
-                        Changes saved for {user.fullName}!
-                    </div>
-                )}
             </div>
         </div>
     );

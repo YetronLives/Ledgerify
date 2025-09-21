@@ -5,23 +5,8 @@ import ForgotPasswordScreen from './components/ForgotPasswordScreen';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
 import PlaceholderScreen from './components/PlaceholderScreen';
-
-// --- TYPE DEFINITIONS ---
-// NOTE: These are commented out since we are using plain JavaScript.
-// interface User {
-//   username: string;
-//   email: string;
-//   fullName: string;
-//   role: 'Administrator' | 'Manager' | 'Accountant';
-//   status: 'Active' | 'Inactive' | 'Suspended';
-//   passwordExpires: string;
-//   securityQuestion: string;
-//   securityQuestion2: string;
-//   securityAnswer: string;
-//   suspendUntil?: string;
-// }
-
-// type LoginView = 'login' | 'register' | 'forgot';
+// eslint-disable-next-line
+import Modal from './components/Modal'; // Import the Modal component
 
 // --- MOCK DATA ---
 const mockUsers = {
@@ -34,13 +19,14 @@ const mockUsers = {
 
 
 function App() {
+    const [users, setUsers] = useState(mockUsers);
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loginView, setLoginView] = useState('login');
 
     const onLogin = (username) => {
-        const userData = mockUsers[username.toLowerCase()];
+        const userData = users[username.toLowerCase()];
         if (userData && (userData.status === 'Active' || (userData.status === 'Suspended' && userData.suspendUntil && new Date() > new Date(userData.suspendUntil)))) {
             setUser({ username, ...userData });
             setLoginView('login');
@@ -48,6 +34,13 @@ function App() {
         } else {
             return userData?.status || 'Invalid';
         }
+    };
+
+    const updateUserInApp = (username, updatedData) => {
+        setUsers(prevUsers => ({
+            ...prevUsers,
+            [username]: { ...prevUsers[username], ...updatedData }
+        }));
     };
 
     const logout = () => {
@@ -60,9 +53,9 @@ function App() {
             return <RegistrationRequestScreen setLoginView={setLoginView} />;
         }
         if (loginView === 'forgot') {
-            return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={mockUsers} />;
+            return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={users} />;
         }
-        return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={mockUsers} />;
+        return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={users} />;
     }
     
     const navItems = [
@@ -111,11 +104,11 @@ function App() {
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
-                    {page === 'dashboard' && <Dashboard user={user} mockUsers={mockUsers} />}
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} />}
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction for Sprint 1." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction for Sprint 1." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction for Sprint 1." />}
-                    {page === 'users' && <UserManagement mockUsers={mockUsers} />}
+                    {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} />}
                     {page === 'help' && <PlaceholderScreen title="Help" message="Welcome to the Help Center. Instructions on using the app will appear here." />}
                 </main>
             </div>
