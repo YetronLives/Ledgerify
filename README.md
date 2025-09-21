@@ -102,7 +102,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 3. Configure Environment
    * Rename the example environment file:
    ```mv .env.example .env```
-   * add your credentials to the blank variables.
+   * Add your credentials to the blank variables.
 
 4. Start the Application
    * Run: ```docker compose up``` , then visit http://localhost:3000/
