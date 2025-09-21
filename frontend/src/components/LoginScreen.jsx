@@ -19,21 +19,16 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
 
         let loginUsername = username.toLowerCase();
-        let userData = mockUsers[loginUsername];
 
         // Check if the input is an email
         if (username.includes('@')) {
             const foundUserEntry = Object.entries(mockUsers).find(([, user]) => user.email.toLowerCase() === username.toLowerCase());
             if (foundUserEntry) {
                 loginUsername = foundUserEntry[0];
-                userData = foundUserEntry[1];
-            } else {
-                // eslint-disable-next-line 
-                userData = undefined; // User not found
             }
         }
 
-        const loginResult = onLogin(loginUsername);
+        const loginResult = onLogin(loginUsername, password);
         setIsLoading(false);
 
         if (loginResult) {
@@ -67,7 +62,7 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                         <label className="block text-gray-600 mb-2" htmlFor="username">Username or Email</label>
-                        <input type="text" id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., meriam or meriam@ledgerify.com"/>
+                        <input type="text" id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., username or username@ledgerify.com"/>
                     </div>
                     <div className="mb-6">
                         <label className="block text-gray-600 mb-2" htmlFor="password">Password</label>

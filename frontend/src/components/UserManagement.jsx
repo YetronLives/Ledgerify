@@ -6,31 +6,27 @@ import SuspendUserForm from './SuspendUserForm';
 import EmailForm from './EmailForm';
 import Modal from './Modal';
 
-function UserManagement({ mockUsers, updateUserInApp }) {
+const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
     const [users, setUsers] = useState(mockUsers);
     const [filter, setFilter] = useState('all');
     const [modalContent, setModalContent] = useState(null);
 
-    const openModal = (type, userData) => {
-        setModalContent({ type, userData });
-    };
-
-    const closeModal = () => {
-        setModalContent(null);
-    };
+    const openModal = (type, userData) => setModalContent({ type, userData });
+    const closeModal = () => setModalContent(null);
 
     const updateUser = (username, updatedData) => {
-        const updatedUsers = {
-            ...users,
-            [username]: {
-                ...users[username],
-                ...updatedData
-            }
-        };
+        const updatedUsers = { ...users, [username]: { ...users[username], ...updatedData } };
         setUsers(updatedUsers);
         updateUserInApp(username, updatedData);
     };
-// eslint-disable-next-line
+    
+    const addUser = (newUser) => {
+        const username = newUser.username.toLowerCase();
+        const updatedUsers = { ...users, [username]: newUser };
+        setUsers(updatedUsers);
+        addUserToApp(newUser);
+    };
+
     const filteredUsers = Object.entries(users).filter(([, user]) => {
         if (filter === 'expired') {
             return new Date(user.passwordExpires) < new Date();
@@ -47,27 +43,24 @@ function UserManagement({ mockUsers, updateUserInApp }) {
             case 'edit': return `Edit User: ${modalContent.userData.fullName}`;
             default: return '';
         }
-    }
+    };
 
     const renderModalContent = () => {
         if (!modalContent) return null;
         switch (modalContent.type) {
             case 'suspend': return <SuspendUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
             case 'email': return <EmailForm user={modalContent.userData} close={closeModal} />;
-            case 'create': return <CreateUserForm close={closeModal} />;
+            case 'create': return <CreateUserForm close={closeModal} addUserToApp={addUser} />;
             case 'edit': return <EditUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
             default: return null;
         }
-    }
+    };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
-            {modalContent && (
-                <Modal isOpen={!!modalContent} onClose={closeModal} title={getModalTitle()}>
-                    {renderModalContent()}
-                </Modal>
-            )}
-
+            <Modal isOpen={!!modalContent} onClose={closeModal} title={getModalTitle()}>
+                {renderModalContent()}
+            </Modal>
             <div className="flex flex-col md:flex-row justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold mb-4 md:mb-0">User Management</h2>
                 <div className="flex items-center space-x-2">
@@ -90,14 +83,12 @@ function UserManagement({ mockUsers, updateUserInApp }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {Object.entries(users).map(([username, user]) => (
+                        {filteredUsers.map(([username, user]) => (
                             <tr key={username} className="border-b">
                                 <td className="p-3">{username}</td>
                                 <td className="p-3 font-medium">{user.fullName}</td>
                                 <td className="p-3">{user.role}</td>
-                                <td className="p-3">
-                                    <span className={`px-3 py-1 text-sm rounded-full ${user.status === 'Active' ? 'bg-green-100 text-green-800' : user.status === 'Inactive' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'}`}>{user.status}</span>
-                                </td>
+                                <td className="p-3"><span className={`px-3 py-1 text-sm rounded-full ${user.status === 'Active' ? 'bg-green-100 text-green-800' : user.status === 'Inactive' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'}`}>{user.status}</span></td>
                                 <td className="p-3">{user.passwordExpires}</td>
                                 <td className="p-3 flex space-x-2 items-center">
                                     <button onClick={() => openModal('edit', { ...user, username })} className="text-blue-600 hover:underline text-sm">Edit</button>
@@ -111,6 +102,6 @@ function UserManagement({ mockUsers, updateUserInApp }) {
             </div>
         </div>
     );
-}
+};
 
 export default UserManagement;

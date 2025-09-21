@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { IconCheckCircle, IconLoading } from './Icons';
 
-function RegistrationRequestScreen({ setLoginView }) {
+const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => {
     const [submitted, setSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedQ1, setSelectedQ1] = useState('');
+    const [selectedQ2, setSelectedQ2] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
         setIsLoading(false);
         setSubmitted(true);
     };
+
+    const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
@@ -34,6 +38,23 @@ function RegistrationRequestScreen({ setLoginView }) {
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input required type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 1</label>
+                                <select required value={selectedQ1} onChange={e => setSelectedQ1(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
+                                    <option value="" disabled>Select a question</option>
+                                    {securityQuestions.map((q, i) => <option key={`q1-${i}`} value={q}>{q}</option>)}
+                                </select>
+                            </div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 2</label>
+                                <select required value={selectedQ2} onChange={e => setSelectedQ2(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white" disabled={!selectedQ1}>
+                                    <option value="" disabled>Select a question</option>
+                                    {availableQ2.map((q, i) => <option key={`q2-${i}`} value={q}>{q}</option>)}
+                                </select>
+                            </div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 2</label><input required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+
                             <button type="submit" disabled={isLoading} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                                 {isLoading && <IconLoading className="w-5 h-5" />}
                                 <span>Submit Request</span>
@@ -45,6 +66,6 @@ function RegistrationRequestScreen({ setLoginView }) {
             </div>
         </div>
     );
-}
+};
 
 export default RegistrationRequestScreen;
