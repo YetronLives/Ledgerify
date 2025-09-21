@@ -25,11 +25,11 @@ import PlaceholderScreen from './components/PlaceholderScreen';
 
 // --- MOCK DATA ---
 const mockUsers = {
-    'meriam': { email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-12-25', securityQuestion: '1. What was your first pet\'s name?', securityQuestion2: '2. In what city were you born?', securityAnswer: 'Leo' },
-    'shams': { email: 'shams@ledgerify.com', fullName: 'Shams', role: 'Manager', status: 'Active', passwordExpires: '2026-09-18', securityQuestion: '1. What was the model of your first car?', securityQuestion2: '2. What is your mother\'s maiden name?', securityAnswer: 'Civic' },
-    'constant': { email: 'constant@ledgerify.com', fullName: 'Constant', role: 'Accountant', status: 'Inactive', passwordExpires: '2026-01-10', securityQuestion: '1. What is your mother\'s maiden name?', securityQuestion2: '2. In what city were you born?', securityAnswer: 'Jones' },
-    'dj': { email: 'dj@example.com', fullName: 'DJ', role: 'Accountant', status: 'Suspended', suspendUntil: '2025-10-01', passwordExpires: '2025-11-11', securityQuestion: '1. What was the model of your first car?', securityQuestion2: '2. What is your mother\'s maiden name?', securityAnswer: 'Civic'},
-    'alix': { email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: '1. In what city were you born?', securityQuestion2: '2. What was the model of your first car?', securityAnswer: 'Atlanta'},
+    'meriam': { email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-12-25', securityQuestion: '1. What was your first pet\'s name?', securityQuestion2: '2. In what city were you born?', securityAnswer: 'Leo', securityAnswer2: 'Atlanta' },
+    'shams': { email: 'shams@ledgerify.com', fullName: 'Shams', role: 'Manager', status: 'Active', passwordExpires: '2026-09-18', securityQuestion: '1. What was the model of your first car?', securityQuestion2: '2. What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones' },
+    'constant': { email: 'constant@ledgerify.com', fullName: 'Constant', role: 'Accountant', status: 'Inactive', passwordExpires: '2026-01-10', securityQuestion: '1. What is your mother\'s maiden name?', securityQuestion2: '2. In what city were you born?', securityAnswer: 'Jones', securityAnswer2: 'Atlanta' },
+    'dj': { email: 'dj@example.com', fullName: 'DJ', role: 'Accountant', status: 'Suspended', suspendUntil: '2025-10-01', passwordExpires: '2025-11-11', securityQuestion: '1. What was the model of your first car?', securityQuestion2: '2. What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones'},
+    'alix': { email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: '1. In what city were you born?', securityQuestion2: '2. What was the model of your first car?', securityAnswer: 'Atlanta', securityAnswer2: 'G-Wagon'},
 };
 
 
@@ -40,7 +40,6 @@ function App() {
     const [loginView, setLoginView] = useState('login');
 
     const onLogin = (username) => {
-      // eslint-disable-next-line 
         const userData = mockUsers[username.toLowerCase()];
         if (userData && (userData.status === 'Active' || (userData.status === 'Suspended' && userData.suspendUntil && new Date() > new Date(userData.suspendUntil)))) {
             setUser({ username, ...userData });
