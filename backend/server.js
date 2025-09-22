@@ -5,6 +5,9 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
+const cors = require('cors');
+app.use(cors());
+
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -22,6 +25,32 @@ app.get('/users', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
     res.json({ message: 'Connected to Supabase!', users: data });
 });
+
+app.post('/CreateUser', async (req, res) => {
+  const {first_name,last_name,q1_answer,q2_answer, email, address,date_of_birth} = req.body;
+  password = "TempPass123!"
+  if (!first_name || !last_name || !email || !password) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+  const argon2 = require('argon2');
+  const password_hash = await argon2.hash(password, { type: argon2.argon2id });
+  const { data, error } = await supabase.from('users').insert([{
+    first_name,
+    last_name,
+    q1_answer,
+    q2_answer,
+    email,
+    address,
+    role : 'user',
+    password_hash,
+    date_of_birth,
+    account_status: false, 
+
+  }]).select();
+    if (error) return res.status(400).json({ error: error.message });
+    res.status(201).json({ message: 'User created successfully', user: data[0] });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
