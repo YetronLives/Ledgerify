@@ -68,7 +68,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 ## Technology Stack 
 
-**Frontend**: React.js and TypeScript for a responsive and interactive UI. 
+**Frontend**: React.js, TailwindCSS and PostCSS for a responsive and interactive UI. 
 
 **Backend**: Node.js with Express for server-side logic - Jest for writing unit tests.
 
@@ -81,6 +81,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 ---
 
 ## Basic Scripts for running Frontend (React.js)
+- `npm install` - to install all the dependecies of the project, that reads the package.json file and downloads all the packeges into the node-modules folder.
 - `npm start` - Start development server (now with TypeScript support)
 - `npm run build` - Build production bundle with TypeScript compilation
 - `npm test` - Run tests with TypeScript support
