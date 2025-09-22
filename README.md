@@ -16,7 +16,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 **Backend Developers (DJ and Constant)**: Handles server-side logic with Node.js/Express. 
 
-**Database / Cloud Engineers (Dj and Shams)**: Manages Firebase setup, data, and deployment. 
+**Database / Cloud Engineers (DJ and Shams)**: Manages Supabase setup, data, and deployment. 
 
 **Tester / QA Engineers (Alix and Constant)**: Tests functionality, usability, and ensures deliverables meet requirements. 
 
@@ -72,7 +72,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 **Backend**: Node.js with Express for server-side logic - Jest for writing unit tests.
 
-**Database**: PostgreSQL for real-time, scalable data storage. 
+**Database**: Supabase for real-time, scalable data storage. 
 
 **Authentication & Security**: JWT for secure user management, roles, and password policies. 
 
@@ -89,6 +89,16 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Compile TypeScript to JavaScript
 - `npm start` - Run the compiled production server
+  
+<a id="test-accounts"></a>
+## Test Accounts (Use for Both Setup Options)
+
+> 👨‍💻 For local development and testing only — not for production.  
+> Works in both Docker (real backend) and Frontend-only (mocked login + UI) modes.
+
+- **Admin**: `shams@ledgerify.com` / `ledger1!`
+- **Manager**: `meriam@ledgerify.com` / `ledger1!`
+- **Accountant**: `constant@example.com` / `ledger1!`
 
 ## Local Setup
 
@@ -128,5 +138,5 @@ If it doesn't come up automatically, navigate to http://localhost:3000/
 
 5. Using the application
    * Now that you have accessed the application, you can test it using the user data mocks provided in the App.jsx file.
-  
-   Note: This mode runs without a backend. You’ll only see mocked or public UI components. To experience login, user approval, and full features, use Option 1 (Docker).
+     
+💡 Note: This mode uses a mock login system — you can still log in with the test accounts above. However, data is not persisted to a real database. For full backend functionality (approval workflows, real reports, etc.), use Option 1 (Docker).
