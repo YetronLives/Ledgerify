@@ -138,5 +138,8 @@ If it doesn't come up automatically, navigate to http://localhost:3000/
 
 5. Using the application
    * Now that you have accessed the application, you can test it using the user data mocks provided in the App.jsx file.
+   * Here’s what the dashboard looks like:
+     
+     ![Ledgerify Dashboard](./screenshots/dashboard.png)
      
 💡 Note: This mode uses a mock login system — you can still log in with the test accounts above. However, data is not persisted to a real database. For full backend functionality (approval workflows, real reports, etc.), use Option 1 (Docker).
