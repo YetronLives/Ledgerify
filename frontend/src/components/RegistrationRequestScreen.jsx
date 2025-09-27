@@ -5,6 +5,23 @@ const RegistrationRequestScreen = ({ setLoginView }) => {
     const [submitted, setSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    
+    // State for security questions
+    const [selectedQ1, setSelectedQ1] = useState(''); 
+    const [selectedQ2, setSelectedQ2] = useState('');
+
+    // Mock security questions for this standalone component
+    const securityQuestions = [
+        'What was your first pet\'s name?',
+        'In what city were you born?',
+        'What is your mother\'s maiden name?',
+        'What was the model of your first car?',
+        'What is the name of your favorite fictional character?'
+    ];
+    
+    // Filters the second set of questions to exclude the first selection
+    const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -63,6 +80,40 @@ const RegistrationRequestScreen = ({ setLoginView }) => {
                              <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
                              <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
                              
+                             {/* --- Security Question 1 --- */}
+                             <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Security Question 1</label>
+                                <select 
+                                    name="securityQuestion1" 
+                                    required 
+                                    value={selectedQ1} 
+                                    onChange={e => setSelectedQ1(e.target.value)} 
+                                    className="w-full px-4 py-2 border rounded-lg bg-white"
+                                >
+                                    <option value="" disabled>Select a question</option>
+                                    {securityQuestions.map((q, i) => <option key={`q1-${i}`} value={q}>{q}</option>)}
+                                </select>
+                            </div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input name="securityAnswer1" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            
+                            {/* --- Security Question 2 --- */}
+                            <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Security Question 2</label>
+                                <select 
+                                    name="securityQuestion2" 
+                                    required 
+                                    value={selectedQ2} 
+                                    onChange={e => setSelectedQ2(e.target.value)} 
+                                    className="w-full px-4 py-2 border rounded-lg bg-white" 
+                                    disabled={!selectedQ1}
+                                >
+                                    <option value="" disabled>Select a question</option>
+                                    {availableQ2.map((q, i) => <option key={`q2-${i}`} value={q}>{q}</option>)}
+                                </select>
+                            </div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 2</label><input name="securityAnswer2" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+
+
                              <div className="mt-4">
                                 <label className="block text-gray-600 mb-2">Requested Role</label>
                                 <select name="role" required className="w-full px-4 py-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
