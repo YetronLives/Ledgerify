@@ -4,6 +4,7 @@ import RegistrationRequestScreen from './components/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/ForgotPasswordScreen';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
+import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
 import { IconLogo, IconLoading } from './components/Icons';
 // eslint-disable-next-line
@@ -32,19 +33,29 @@ function App() {
     const [loginView, setLoginView] = useState('login');
 
     // Functions
-    const onLogin = (username, password) => {
-        const lowercasedUsername = username.toLowerCase();
-        const userData = users[lowercasedUsername];
-    
-        if (!userData || userData.password !== password) return 'Invalid';
+    const onLogin = (email, role, firstName, lastName) => {
+        // For backend login, we receive email, role, and names directly
+        // Create a user object with the necessary data
+        const userData = {
+            email: email,
+            role: role,
+            fullName: firstName || email.split('@')[0], // Use first name from DB, fallback to email prefix
+            firstName: firstName,
+            lastName: lastName,
+            status: 'Active'
+        };
         
-        if (userData.status === 'Active' || (userData.status === 'Suspended' && userData.suspendUntil && new Date() > new Date(userData.suspendUntil))) {
-            setUser({ username: lowercasedUsername, ...userData });
-            setLoginView('login');
-            return undefined;
+        setUser(userData);
+        setLoginView('login');
+        
+        // Set initial page based on role
+        if (role === 'admin' || role === 'Administrator') {
+            setPage('users'); // Admin goes to user management
         } else {
-            return userData.status;
+            setPage('userhome'); // Regular users go to user home
         }
+        
+        return undefined;
     };
 
     const updateUserInApp = (username, updatedData) => {
@@ -71,12 +82,13 @@ function App() {
     }
     
     const navItems = [
-        { id: 'dashboard', label: 'Dashboard', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'accounts', label: 'Chart of Accounts', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'journal', label: 'Journal Entries', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'reports', label: 'Financial Reports', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'users', label: 'User Management', roles: ['Administrator'] },
-        { id: 'help', label: 'Help', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'userhome', label: 'Home', roles: ['user', 'admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'dashboard', label: 'Dashboard', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'accounts', label: 'Chart of Accounts', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'journal', label: 'Journal Entries', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'reports', label: 'Financial Reports', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'users', label: 'User Management', roles: ['admin', 'Administrator'] },
+        { id: 'help', label: 'Help', roles: ['user', 'admin', 'Administrator', 'Manager', 'Accountant'] },
     ];
 
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
@@ -111,12 +123,13 @@ function App() {
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
                     <div className="flex items-center space-x-4">
                         <div className="text-right">
-                           <span className="text-gray-600 font-semibold">{user.fullName}</span>
+                           <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
                         </div>
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
+                    {page === 'userhome' && <UserHome user={user} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} />}
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
