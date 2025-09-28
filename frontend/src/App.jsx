@@ -27,34 +27,40 @@ function App() {
     const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
 
     // State
-    const [users, setUsers] = useState(mockUsers);
-    //const [users, setUsers] = useState([]);
+    //const [users, setUsers] = useState(mockUsers);
+    const [users, setUsers] = useState([]);
 
-    // useEffect(() => {
+    useEffect(() => {
 
-    //     fetch('http://localhost:5000/users')
+        fetch('http://localhost:5000/users')
 
-    //       .then(response => response.json())
+          .then(response => response.json())
 
-    //       .then(data => {
+          .then(data => {
+            const mappedUsers = data.users.reduce((acc, user) => {
+              acc[user.username || user.email] = {
+                email: user.email,
+                fullName: `${user.first_name} ${user.last_name}`,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                role: user.role === 'Admin' ? 'Administrator' : user.role,
+                status: user.account_status ? 'Active' : 'Inactive',
+                username: user.username,
+                securityAnswer: user.q1_answer,
+                securityAnswer2: user.q2_answer,
+                address: user.address,
+                dateOfBirth: user.date_of_birth,
+                loginAttempts: user.login_attempts || 0
+              };
+              return acc;
+            }, {});
+            setUsers(mappedUsers);
 
-    //         // convert array → object keyed by username
+          })
 
-    //         // const usersByUsername = data.reduce((acc, user) => {
+          .catch(err => console.error(err));
 
-    //         //   acc[user.email] = user;
-
-    //         //   return acc;
-
-    //         // }, {});
-
-    //         setUsers(data.users.email);
-
-    //       })
-
-    //       .catch(err => console.error(err));
-
-    //   }, []);
+      }, []);
  
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');

@@ -29,6 +29,8 @@ app.get('/users', async (req, res) => {
 app.post('/CreateUser', async (req, res) => {
   const {first_name,last_name,q1_answer,q2_answer, email, address,date_of_birth} = req.body;
   password = "TempPass123!"
+  username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
+  username = username.toLowerCase()
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
@@ -37,6 +39,7 @@ app.post('/CreateUser', async (req, res) => {
   const { data, error } = await supabase.from('users').insert([{
     first_name,
     last_name,
+    username,
     q1_answer,
     q2_answer,
     email,
