@@ -27,34 +27,34 @@ function App() {
     const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
 
     // State
-    // const [users, setUsers] = useState(mockUsers);
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState(mockUsers);
+    //const [users, setUsers] = useState([]);
 
-    useEffect(() => {
+    // useEffect(() => {
 
-        fetch('http://localhost:5000/users')
+    //     fetch('http://localhost:5000/users')
 
-          .then(response => response.json())
+    //       .then(response => response.json())
 
-          .then(data => {
+    //       .then(data => {
 
-            // convert array → object keyed by username
+    //         // convert array → object keyed by username
 
-            // const usersByUsername = data.reduce((acc, user) => {
+    //         // const usersByUsername = data.reduce((acc, user) => {
 
-            //   acc[user.email] = user;
+    //         //   acc[user.email] = user;
 
-            //   return acc;
+    //         //   return acc;
 
-            // }, {});
+    //         // }, {});
 
-            setUsers(data.users.email);
+    //         setUsers(data.users.email);
 
-          })
+    //       })
 
-          .catch(err => console.error(err));
+    //       .catch(err => console.error(err));
 
-      }, []);
+    //   }, []);
  
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');
@@ -110,13 +110,13 @@ function App() {
     }
     
     const navItems = [
-        { id: 'userhome', label: 'Home', roles: ['user', 'admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'dashboard', label: 'Dashboard', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'accounts', label: 'Chart of Accounts', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'journal', label: 'Journal Entries', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'reports', label: 'Financial Reports', roles: ['admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'users', label: 'User Management', roles: ['admin', 'Administrator'] },
-        { id: 'help', label: 'Help', roles: ['user', 'admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'userhome', label: 'Home', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'dashboard', label: 'Dashboard', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'accounts', label: 'Chart of Accounts', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'journal', label: 'Journal Entries', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'reports', label: 'Financial Reports', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'users', label: 'User Management', roles: ['Admin', 'Administrator'] },
+        { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
     ];
 
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
