@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -12,5 +12,9 @@
   "dependencies": {
     "express": "^5.1.0"
   },
-  "proxy": "http://localhost:5000"
-}
+  "proxy": "http://localhost:5000",
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
+  
+ }
