@@ -6,7 +6,8 @@ import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
 import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
-import { IconLogo, IconLoading } from './components/Icons';
+import Profile from './components/Profile';
+import { IconLogo, IconLoading, IconUser } from './components/Icons';
 import { useEffect } from 'react';
 // eslint-disable-next-line
 import Modal from './components/Modal'; // Import the Modal component
@@ -94,6 +95,11 @@ function App() {
 
     const updateUserInApp = (username, updatedData) => {
         setUsers(prevUsers => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
+        
+        // Also update the current user if they're the one being updated
+        if (user && (user.username === username || user.email === username)) {
+            setUser(prevUser => ({ ...prevUser, ...updatedData }));
+        }
     };
 
     const addUserToApp = (newUser) => {
@@ -122,6 +128,7 @@ function App() {
         { id: 'journal', label: 'Journal Entries', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
         { id: 'reports', label: 'Financial Reports', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
         { id: 'users', label: 'User Management', roles: ['Admin', 'Administrator'] },
+        { id: 'profile', label: 'Profile', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
         { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
     ];
 
@@ -160,6 +167,21 @@ function App() {
                            <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
                         </div>
+                        <button 
+                            onClick={() => setPage('profile')}
+                            className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                            title="Profile"
+                        >
+                            {user.profileImage ? (
+                                <img 
+                                    src={user.profileImage} 
+                                    alt="Profile" 
+                                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-300"
+                                />
+                            ) : (
+                                <IconUser className="w-6 h-6 text-gray-600 m-1" />
+                            )}
+                        </button>
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
@@ -169,6 +191,7 @@ function App() {
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
+                    {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
                     {page === 'help' && <PlaceholderScreen title="Help" message="Welcome to the Help Center. Instructions on using the app will appear here." />}
                 </main>
             </div>
