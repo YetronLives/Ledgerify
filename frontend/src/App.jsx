@@ -7,6 +7,7 @@ import UserManagement from './components/UserManagement';
 import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
 import { IconLogo, IconLoading } from './components/Icons';
+import { useEffect } from 'react';
 // eslint-disable-next-line
 import Modal from './components/Modal'; // Import the Modal component
 
@@ -26,7 +27,35 @@ function App() {
     const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
 
     // State
-    const [users, setUsers] = useState(mockUsers);
+    // const [users, setUsers] = useState(mockUsers);
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+
+        fetch('http://localhost:5000/users')
+
+          .then(response => response.json())
+
+          .then(data => {
+
+            // convert array → object keyed by username
+
+            // const usersByUsername = data.reduce((acc, user) => {
+
+            //   acc[user.email] = user;
+
+            //   return acc;
+
+            // }, {});
+
+            setUsers(data.users.email);
+
+          })
+
+          .catch(err => console.error(err));
+
+      }, []);
+ 
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -47,9 +76,8 @@ function App() {
         
         setUser(userData);
         setLoginView('login');
-        
-        // Set initial page based on role
-        if (role === 'admin' || role === 'Administrator') {
+
+        if (role === 'Admin' || role === 'Administrator') {
             setPage('users'); // Admin goes to user management
         } else {
             setPage('userhome'); // Regular users go to user home
