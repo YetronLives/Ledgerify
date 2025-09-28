@@ -111,7 +111,7 @@ function App() {
     // Render Logic
     if (!user) {
         if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
-        if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={users} updateUserInApp={updateUserInApp} />;
+        if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} />;
         return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={users} />;
     }
     

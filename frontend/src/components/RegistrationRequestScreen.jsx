@@ -18,6 +18,8 @@ const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => 
             first_name: formData.get('first_name'),
             last_name: formData.get('last_name'),
             email: formData.get('email'),
+            question1: formData.get('question1'),
+            question2: formData.get('question2'),
             address: formData.get('address'),
             q1_answer: formData.get('q1_answer'),
             q2_answer: formData.get('q2_answer'),
@@ -67,7 +69,7 @@ const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => 
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required name="date_of_birth" type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
                             
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 1</label>
-                                <select required value={selectedQ1} onChange={e => setSelectedQ1(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
+                                <select required name="question1" value={selectedQ1} onChange={e => setSelectedQ1(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
                                     <option value="" disabled>Select a question</option>
                                     {securityQuestions.map((q, i) => <option key={`q1-${i}`} value={q}>{q}</option>)}
                                 </select>
@@ -75,7 +77,7 @@ const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => 
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input name="q1_answer" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
                             
                             <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 2</label>
-                                <select required value={selectedQ2} onChange={e => setSelectedQ2(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white" disabled={!selectedQ1}>
+                                <select required name="question2" value={selectedQ2} onChange={e => setSelectedQ2(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white" disabled={!selectedQ1}>
                                     <option value="" disabled>Select a question</option>
                                     {availableQ2.map((q, i) => <option key={`q2-${i}`} value={q}>{q}</option>)}
                                 </select>
