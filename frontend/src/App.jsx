@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegistrationRequestScreen from './components/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/ForgotPasswordScreen';
@@ -23,6 +23,7 @@ function App() {
 
     const allSecurityQuestions = Object.values(mockUsers).flatMap(u => [u.securityQuestion, u.securityQuestion2]);
     const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
+    const uniqueId = useId(); 
 
     // State
     const [users, setUsers] = useState(mockUsers);
@@ -30,6 +31,7 @@ function App() {
     const [page, setPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loginView, setLoginView] = useState('login');
+    const [pendingRequests, setPendingRequests] = useState([]); 
 
     // Functions
     const onLogin = (username, password) => {
@@ -52,11 +54,74 @@ function App() {
     };
 
     const addUserToApp = (newUser) => {
-        const username = newUser.username.toLowerCase();
-        // Remove username from the object before setting it as the value
-        const { username: _, ...userData } = newUser;
-        setUsers(prevUsers => ({ ...prevUsers, [username]: userData }));
+        // --- FIX: Add robust check for username before processing ---
+        if (!newUser || typeof newUser.username !== 'string' || newUser.username.trim() === '') {
+            console.error("CRITICAL ERROR: Attempted to add user without a valid username.", newUser);
+            return;
+        }
+
+        const username = newUser.username.toLowerCase(); // Safe now
+        // --- END FIX ---
+        
+        // When adding an approved user (from request) we use firstName/lastName
+        // When adding a user directly (from CreateUserForm), we use fullName
+        const fullName = newUser.fullName || `${newUser.firstName} ${newUser.lastName}`;
+
+
+        const newUserData = {
+            password: newUser.password, 
+            email: newUser.email,
+            fullName: fullName,
+            role: newUser.role,
+            status: newUser.status || 'Active', // Status will be provided by CreateUserForm, defaults to Active if from request
+            passwordExpires: newUser.passwordExpires || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+            securityQuestion: newUser.securityQuestion1 || newUser.securityQuestion,
+            securityQuestion2: newUser.securityQuestion2 || newUser.securityQuestion2,
+            securityAnswer: newUser.securityAnswer1 || newUser.securityAnswer,
+            securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
+        };
+
+        setUsers(prevUsers => ({ ...prevUsers, [username]: newUserData }));
+        console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
+    
+    // Handler for new registration requests coming from the login screen
+    const addRegistrationRequest = (requestData) => {
+        const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        setPendingRequests(prev => [...prev, { id: requestId, ...requestData }]);
+        console.log("[App] New Registration Request Added:", requestId);
+    }
+    
+    // Handler for approving or denying a request from the Dashboard
+    const handleRequest = (requestId, action) => {
+        setPendingRequests(prevRequests => {
+            const requestIndex = prevRequests.findIndex(req => req.id === requestId);
+            if (requestIndex === -1) return prevRequests;
+
+            const request = prevRequests[requestIndex];
+
+            if (action === 'approve') {
+                // APPROVE: Generate a temporary username based on first/last name and add to the main users list
+                const baseUsername = request.firstName.toLowerCase().substring(0, 3) + request.lastName.toLowerCase().substring(0, 3);
+                let username = baseUsername;
+                let counter = 10;
+                while (users[username] && counter < 100) {
+                    username = baseUsername + counter;
+                    counter++;
+                }
+
+                // Append the generated username to the request data before adding
+                const userToApprove = { ...request, username };
+                addUserToApp(userToApprove); 
+            } else {
+                // DENY: Log denial
+                console.log(`[App] Request ${requestId} denied.`);
+            }
+
+            // Remove the request from the pending list
+            return prevRequests.filter(req => req.id !== requestId);
+        });
+    }
 
     const logout = () => {
         setUser(null);
@@ -65,7 +130,7 @@ function App() {
 
     // Render Logic
     if (!user) {
-        if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
+        if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} onSubmitRequest={addRegistrationRequest} />; 
         if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={users} updateUserInApp={updateUserInApp} />;
         return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={users} />;
     }
@@ -117,7 +182,7 @@ function App() {
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
-                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} />}
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} />} 
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}

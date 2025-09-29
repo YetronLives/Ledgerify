@@ -1,24 +1,69 @@
 import React, { useState } from 'react';
 import { IconCheckCircle, IconLoading } from './Icons';
 
-const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => {
+const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Added onSubmitRequest prop
     const [submitted, setSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedQ1, setSelectedQ1] = useState('');
+    const [error, setError] = useState('');
+    
+    // State for security questions
+    const [selectedQ1, setSelectedQ1] = useState(''); 
     const [selectedQ2, setSelectedQ2] = useState('');
+
+    // Mock security questions for this standalone component
+    const securityQuestions = [
+        'What was your first pet\'s name?',
+        'In what city were you born?',
+        'What is your mother\'s maiden name?',
+        'What was the model of your first car?',
+        'What is the name of your favorite fictional character?'
+    ];
+    
+    // Filters the second set of questions to exclude the first selection
+    const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        const formData = new FormData(e.currentTarget);
+        
+        // Safely extract password values
+        const newPassword = formData.get('password');
+        const confirmPassword = formData.get('confirmPassword');
+        
+        // Ensure values are treated as strings
+        const newPasswordStr = typeof newPassword === 'string' ? newPassword : '';
+        const confirmPasswordStr = typeof confirmPassword === 'string' ? confirmPassword : '';
+
+        // Validation checks
+        if (newPasswordStr !== confirmPasswordStr) {
+            setError('Passwords do not match.');
+            return;
+        }
+
+        if (newPasswordStr.length < 8) {
+             setError('Password must be at least 8 characters long.');
+            return;
+        }
+
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+        
+        const registrationData = Object.fromEntries(formData.entries());
+        
+        // Pass the request data up to App.jsx for queuing
+        if (onSubmitRequest) {
+            onSubmitRequest(registrationData);
+        }
+
+        // Simulating completion only after queuing
         setIsLoading(false);
         setSubmitted(true);
     };
 
-    const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
-
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4 font-sans">
             <div className="w-full max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg">
                 {submitted ? (
                     <div className="text-center">
@@ -30,30 +75,67 @@ const RegistrationRequestScreen = ({ setLoginView, securityQuestions = [] }) => 
                 ) : (
                     <>
                         <h2 className="text-2xl font-bold text-center text-gray-700 mb-6">Request Access</h2>
+                        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
                         <form onSubmit={handleSubmit}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-gray-600 mb-2">First Name</label><input required className="w-full px-4 py-2 border rounded-lg"/></div>
-                                <div><label className="block text-gray-600 mb-2">Last Name</label><input required className="w-full px-4 py-2 border rounded-lg"/></div>
-                            </div>
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input required type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
-                            
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 1</label>
-                                <select required value={selectedQ1} onChange={e => setSelectedQ1(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-gray-600 mb-2">First Name</label><input name="firstName" required className="w-full px-4 py-2 border rounded-lg"/></div>
+                                <div><label className="block text-gray-600 mb-2">Last Name</label><input name="lastName" required className="w-full px-4 py-2 border rounded-lg"/></div>
+                             </div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input name="email" required type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea name="address" required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input name="dateOfBirth" required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
+                             
+                             {/* --- Security Question 1 --- */}
+                             <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Security Question 1</label>
+                                <select 
+                                    name="securityQuestion1" 
+                                    required 
+                                    value={selectedQ1} 
+                                    onChange={e => setSelectedQ1(e.target.value)} 
+                                    className="w-full px-4 py-2 border rounded-lg bg-white"
+                                >
                                     <option value="" disabled>Select a question</option>
                                     {securityQuestions.map((q, i) => <option key={`q1-${i}`} value={q}>{q}</option>)}
                                 </select>
                             </div>
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input name="securityAnswer1" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
                             
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 2</label>
-                                <select required value={selectedQ2} onChange={e => setSelectedQ2(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white" disabled={!selectedQ1}>
+                            {/* --- Security Question 2 --- */}
+                            <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Security Question 2</label>
+                                <select 
+                                    name="securityQuestion2" 
+                                    required 
+                                    value={selectedQ2} 
+                                    onChange={e => setSelectedQ2(e.target.value)} 
+                                    className="w-full px-4 py-2 border rounded-lg bg-white" 
+                                    disabled={!selectedQ1}
+                                >
                                     <option value="" disabled>Select a question</option>
                                     {availableQ2.map((q, i) => <option key={`q2-${i}`} value={q}>{q}</option>)}
                                 </select>
                             </div>
-                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 2</label><input required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 2</label><input name="securityAnswer2" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+
+
+                             <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Requested Role</label>
+                                <select name="role" required className="w-full px-4 py-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="Accountant">Accountant</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Administrator">Administrator</option>
+                                </select>
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="block text-gray-600 mb-2">Password (Min 8 Chars)</label>
+                                <input name="password" type="password" required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/>
+                            </div>
+                             <div className="mt-4 mb-6">
+                                <label className="block text-gray-600 mb-2">Confirm Password</label>
+                                <input name="confirmPassword" type="password" required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/>
+                            </div>
 
                             <button type="submit" disabled={isLoading} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                                 {isLoading && <IconLoading className="w-5 h-5" />}
