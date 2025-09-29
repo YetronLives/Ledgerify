@@ -98,7 +98,9 @@ function RequestInbox({ requests, handleRequest }) {
                         <p><strong>Requested Role:</strong> <span className="font-semibold text-blue-600">{selectedRequest.role}</span></p>
                         <p><strong>Date of Birth:</strong> {selectedRequest.dateOfBirth}</p>
                         <hr className="mt-4 mb-4"/>
-                        <p className="text-sm text-gray-500">Note: Upon approval, a temporary username will be generated, and the account status will be set to 'Active'.</p>
+                        <p className="text-sm text-gray-500">
+                            Note: Upon approval, an email will be sent to the new user with a link to login to the system and a temporary password. The account status will be set to 'Active'.
+                        </p>
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4">
@@ -126,13 +128,11 @@ function RequestInbox({ requests, handleRequest }) {
 }
 
 // --- Dashboard Component ---
-function Dashboard({ user, mockUsers, pendingRequests, handleRequest }) {
-    // Safety check: If user is not yet defined (meaning App.jsx rendered Dashboard prematurely), return null.
+function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage }) { // <-- ACCEPT setPage
     if (!user) {
         return null;
     }
     
-    // Default mockUsers to an empty object {} if it is null or undefined
     const usersData = mockUsers || {}; 
 
     const userStats = Object.values(usersData);
@@ -141,26 +141,58 @@ function Dashboard({ user, mockUsers, pendingRequests, handleRequest }) {
     const inactiveUsers = userStats.filter(u => u.status === 'Inactive').length;
     const expiredPasswords = userStats.filter(u => new Date(u.passwordExpires) < new Date()).length;
 
-    // Show inbox for Administrator and Manager roles
-    const showInbox = user.role === 'Administrator' || user.role === 'Manager';
+    const isAdmin = user.role === 'Administrator';
+
 
     return (
         <div>
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Welcome, {user.fullName}!</h2>
             
-            {showInbox && (
+            {/* 1. Request Inbox (Visible to Admin only) */}
+            {isAdmin && (
                 <RequestInbox 
                     requests={pendingRequests} 
                     handleRequest={handleRequest} 
                 />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Total Users</h3><p className="text-3xl font-bold text-blue-500 mt-2">{totalUsers}</p></div>
-                <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Active Users</h3><p className="text-3xl font-bold text-green-500 mt-2">{activeUsers}</p></div>
-                <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Inactive Users</h3><p className="text-3xl font-bold text-gray-500 mt-2">{inactiveUsers}</p></div>
-                <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Expired Passwords</h3><p className="text-3xl font-bold text-red-500 mt-2">{expiredPasswords}</p></div>
-            </div>
+            {/* 2. Content Block: Admin Stats or Role-Specific Overview */}
+            {isAdmin ? (
+                // ADMIN VIEW
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Total Users</h3><p className="text-3xl font-bold text-blue-500 mt-2">{totalUsers}</p></div>
+                    <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Active Users</h3><p className="text-3xl font-bold text-green-500 mt-2">{activeUsers}</p></div>
+                    <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Inactive Users</h3><p className="text-3xl font-bold text-gray-500 mt-2">{inactiveUsers}</p></div>
+                    <div className="bg-white p-6 rounded-lg shadow-md"><h3 className="text-lg font-semibold text-gray-700">Expired Passwords</h3><p className="text-3xl font-bold text-red-500 mt-2">{expiredPasswords}</p></div>
+                </div>
+            ) : (
+                // MANAGER/ACCOUNTANT VIEW
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">System Overview</h3>
+                    <p className="text-gray-600">
+                        {user.role === 'Manager'
+                            ? "As a Manager, your dashboard provides links to review financial reports and approve transactions."
+                            : "Welcome to the Accounting Dashboard. Get started by navigating to the Chart of Accounts or Journal Entries to begin your work."
+                        }
+                    </p>
+                    
+                    {/* MODIFIED: Quick action buttons now call setPage */}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                         {user.role === 'Manager' && (
+                             <>
+                                 <button onClick={() => setPage('reports')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150">Review Reports</button>
+                                 <button className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-150">Approve Transactions</button>
+                             </>
+                         )}
+                         {user.role === 'Accountant' && (
+                             <>
+                                 <button onClick={() => setPage('journal')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition duration-150">Start New Journal Entry</button>
+                                 <button onClick={() => setPage('accounts')} className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-150">View Chart of Accounts</button>
+                             </>
+                         )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

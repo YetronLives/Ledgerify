@@ -1,21 +1,31 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegistrationRequestScreen from './components/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/ForgotPasswordScreen';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
 import PlaceholderScreen from './components/PlaceholderScreen';
-import { IconLogo, IconLoading } from './components/Icons';
+import { IconLogo, IconLoading, UserAvatar } from './components/Icons'; 
 // eslint-disable-next-line
-import Modal from './components/Modal'; // Import the Modal component
+import Modal from './components/Modal'; 
 
 // --- MOCK DATA ---
 const mockUsers = {
-    'meriam': { password: 'ledger1!', email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-12-25', securityQuestion: 'What was your first pet\'s name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Leo', securityAnswer2: 'Atlanta' },
+    'meriam': { password: 'ledger1!', email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-10-02', securityQuestion: 'What was your first pet\'s name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Leo', securityAnswer2: 'Atlanta' }, 
     'shams': { password: 'ledger1!', email: 'shams@ledgerify.com', fullName: 'Shams', role: 'Manager', status: 'Active', passwordExpires: '2026-09-18', securityQuestion: 'What was the model of your first car?', securityQuestion2: 'What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones' },
     'constant': { password: 'ledger1!', email: 'constant@ledgerify.com', fullName: 'Constant', role: 'Accountant', status: 'Inactive', passwordExpires: '2025-01-10', securityQuestion: 'What is your mother\'s maiden name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Jones', securityAnswer2: 'Atlanta' },
     'dj': { password: 'ledger1!', email: 'dj@example.com', fullName: 'DJ', role: 'Accountant', status: 'Suspended', suspendUntil: '2025-10-01', passwordExpires: '2025-11-11', securityQuestion: 'What was the model of your first car?', securityQuestion2: 'What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones'},
     'alix': { password: 'ledger1!', email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: 'In what city were you born?', securityQuestion2: 'What was the model of your first car?', securityAnswer: 'Atlanta', securityAnswer2: 'G-Wagon'},
+};
+
+// --- Function to generate a temporary, secure password ---
+const generateTemporaryPassword = (length = 10) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
 };
 
 
@@ -32,15 +42,43 @@ function App() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loginView, setLoginView] = useState('login');
     const [pendingRequests, setPendingRequests] = useState([]); 
+    const [notification, setNotification] = useState(null); 
 
     // Functions
     const onLogin = (username, password) => {
         const lowercasedUsername = username.toLowerCase();
         const userData = users[lowercasedUsername];
-    
+        
         if (!userData || userData.password !== password) return 'Invalid';
         
         if (userData.status === 'Active' || (userData.status === 'Suspended' && userData.suspendUntil && new Date() > new Date(userData.suspendUntil))) {
+            
+            // --- MODIFIED: PASSWORD EXPIRATION CHECK ---
+            const passwordExpiryDate = new Date(userData.passwordExpires);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            passwordExpiryDate.setHours(0, 0, 0, 0);
+
+            const oneDay = 24 * 60 * 60 * 1000;
+            const diffTime = passwordExpiryDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / oneDay);
+            
+            if (diffDays <= 3) {
+                let message;
+                let type;
+                if (diffDays <= 0) {
+                     message = "ERROR: Your password has EXPIRED! Please use the 'Forgot Password' link to reset it immediately.";
+                     type = 'error';
+                } else {
+                     message = `WARNING: Your password will expire in ${diffDays} day${diffDays !== 1 ? 's' : ''} on ${userData.passwordExpires}! Please change it now.`;
+                     type = 'warning';
+                }
+                setNotification({ type, message });
+            } else {
+                setNotification(null);
+            }
+            // --- END MODIFIED PASSWORD EXPIRATION CHECK ---
+
             setUser({ username: lowercasedUsername, ...userData });
             setLoginView('login');
             return undefined;
@@ -54,26 +92,21 @@ function App() {
     };
 
     const addUserToApp = (newUser) => {
-        // --- FIX: Add robust check for username before processing ---
         if (!newUser || typeof newUser.username !== 'string' || newUser.username.trim() === '') {
             console.error("CRITICAL ERROR: Attempted to add user without a valid username.", newUser);
             return;
         }
 
-        const username = newUser.username.toLowerCase(); // Safe now
-        // --- END FIX ---
-        
-        // When adding an approved user (from request) we use firstName/lastName
-        // When adding a user directly (from CreateUserForm), we use fullName
+        const username = newUser.username.toLowerCase();
         const fullName = newUser.fullName || `${newUser.firstName} ${newUser.lastName}`;
 
 
         const newUserData = {
-            password: newUser.password, 
+            password: newUser.tempPassword || newUser.password || 'ledger1!', 
             email: newUser.email,
             fullName: fullName,
             role: newUser.role,
-            status: newUser.status || 'Active', // Status will be provided by CreateUserForm, defaults to Active if from request
+            status: newUser.status || 'Active', 
             passwordExpires: newUser.passwordExpires || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
             securityQuestion: newUser.securityQuestion1 || newUser.securityQuestion,
             securityQuestion2: newUser.securityQuestion2 || newUser.securityQuestion2,
@@ -85,14 +118,12 @@ function App() {
         console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
     
-    // Handler for new registration requests coming from the login screen
     const addRegistrationRequest = (requestData) => {
         const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         setPendingRequests(prev => [...prev, { id: requestId, ...requestData }]);
         console.log("[App] New Registration Request Added:", requestId);
     }
     
-    // Handler for approving or denying a request from the Dashboard
     const handleRequest = (requestId, action) => {
         setPendingRequests(prevRequests => {
             const requestIndex = prevRequests.findIndex(req => req.id === requestId);
@@ -101,24 +132,50 @@ function App() {
             const request = prevRequests[requestIndex];
 
             if (action === 'approve') {
-                // APPROVE: Generate a temporary username based on first/last name and add to the main users list
-                const baseUsername = request.firstName.toLowerCase().substring(0, 3) + request.lastName.toLowerCase().substring(0, 3);
-                let username = baseUsername;
-                let counter = 10;
-                while (users[username] && counter < 100) {
-                    username = baseUsername + counter;
+                const now = new Date();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = String(now.getFullYear()).slice(-2);
+
+                const firstNameInitial = request.firstName.charAt(0).toLowerCase();
+                const fullLastName = request.lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const dateSuffix = month + year;
+
+                const initialBaseUsername = firstNameInitial + fullLastName + dateSuffix;
+
+                let username = initialBaseUsername;
+                let counter = 1;
+                while (users[username]) {
+                    username = initialBaseUsername + counter; 
                     counter++;
                 }
-
-                // Append the generated username to the request data before adding
-                const userToApprove = { ...request, username };
+                
+                const tempPassword = generateTemporaryPassword();
+                
+                const userToApprove = { 
+                    ...request, 
+                    username, 
+                    tempPassword, 
+                    status: 'Active' 
+                };
                 addUserToApp(userToApprove); 
+                
+                const loginLink = window.location.origin;
+                
+                console.log(`[App] Approval Email SIMULATED SENT to ${request.email}`);
+                console.log(`[App] New User Credentials: Username: ${username}, Password: ${tempPassword}`);
+                
+                alert(
+                    `SUCCESS! User Approved.\n\n` +
+                    `An email with the following details has been 'sent' to ${request.email}:\n\n` +
+                    `LOGIN LINK: ${loginLink}\n` +
+                    `TEMPORARY USERNAME: ${username}\n` +
+                    `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
+                    `The user should use these credentials to log in for the first time.`
+                );
             } else {
-                // DENY: Log denial
-                console.log(`[App] Request ${requestId} denied.`);
+                console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
             }
 
-            // Remove the request from the pending list
             return prevRequests.filter(req => req.id !== requestId);
         });
     }
@@ -126,7 +183,10 @@ function App() {
     const logout = () => {
         setUser(null);
         setPage('dashboard');
+        setNotification(null); 
     };
+    
+    // Notification clear effect removed to keep banner visible until dismissed/logout
 
     // Render Logic
     if (!user) {
@@ -175,6 +235,7 @@ function App() {
                     </button>
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
                     <div className="flex items-center space-x-4">
+                        <UserAvatar className="w-10 h-10" /> 
                         <div className="text-right">
                            <span className="text-gray-600 font-semibold">{user.fullName}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
@@ -182,7 +243,17 @@ function App() {
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
-                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} />} 
+                    {notification && (
+                        <div className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'}`}>
+                            <span>{notification.message}</span>
+                            <button onClick={() => setNotification(null)} className="text-white hover:text-gray-200 font-bold ml-4">
+                                &times;
+                            </button>
+                        </div>
+                    )}
+
+                    {/* MODIFIED: PASS setPage DOWN TO DASHBOARD */}
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} />} 
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}

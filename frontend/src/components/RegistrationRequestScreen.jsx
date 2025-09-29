@@ -27,25 +27,6 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
         e.preventDefault();
         setError('');
         const formData = new FormData(e.currentTarget);
-        
-        // Safely extract password values
-        const newPassword = formData.get('password');
-        const confirmPassword = formData.get('confirmPassword');
-        
-        // Ensure values are treated as strings
-        const newPasswordStr = typeof newPassword === 'string' ? newPassword : '';
-        const confirmPasswordStr = typeof confirmPassword === 'string' ? confirmPassword : '';
-
-        // Validation checks
-        if (newPasswordStr !== confirmPasswordStr) {
-            setError('Passwords do not match.');
-            return;
-        }
-
-        if (newPasswordStr.length < 8) {
-             setError('Password must be at least 8 characters long.');
-            return;
-        }
 
         setIsLoading(true);
         await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
@@ -127,15 +108,7 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                                     <option value="Administrator">Administrator</option>
                                 </select>
                             </div>
-
-                            <div className="mt-4">
-                                <label className="block text-gray-600 mb-2">Password (Min 8 Chars)</label>
-                                <input name="password" type="password" required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/>
-                            </div>
-                             <div className="mt-4 mb-6">
-                                <label className="block text-gray-600 mb-2">Confirm Password</label>
-                                <input name="confirmPassword" type="password" required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/>
-                            </div>
+                                
 
                             <button type="submit" disabled={isLoading} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                                 {isLoading && <IconLoading className="w-5 h-5" />}
