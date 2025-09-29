@@ -3,6 +3,7 @@ import { IconPlusCircle, IconMail } from './Icons';
 import CreateUserForm from './CreateUserForm';
 import EditUserForm from './EditUserForm';
 import SuspendUserForm from './SuspendUserForm';
+import DeactivateUserForm from './DeactivateUserForm';
 import EmailForm from './EmailForm';
 import Modal from './Modal';
 
@@ -38,6 +39,7 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
         if (!modalContent) return '';
         switch (modalContent.type) {
             case 'suspend': return 'Suspend User';
+            case 'deactivate': return `${modalContent.userData.status === 'Active' ? 'Deactivate' : 'Activate'} User`;
             case 'email': return `Email ${modalContent.userData.fullName}`;
             case 'create': return 'Create New User';
             case 'edit': return `Edit User: ${modalContent.userData.fullName}`;
@@ -49,6 +51,7 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
         if (!modalContent) return null;
         switch (modalContent.type) {
             case 'suspend': return <SuspendUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
+            case 'deactivate': return <DeactivateUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
             case 'email': return <EmailForm user={modalContent.userData} close={closeModal} />;
             case 'create': return <CreateUserForm close={closeModal} addUserToApp={addUser} />;
             case 'edit': return <EditUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
@@ -108,6 +111,12 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
                                 </td>
                                 <td className="p-3 flex space-x-2 items-center">
                                     <button onClick={() => openModal('edit', { ...user, username })} className="text-blue-600 hover:underline text-sm">Edit</button>
+                                    <button 
+                                        onClick={() => openModal('deactivate', { ...user, username })} 
+                                        className={`hover:underline text-sm ${user.status === 'Active' ? 'text-orange-600' : 'text-green-600'}`}
+                                    >
+                                        {user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                    </button>
                                     <button onClick={() => openModal('suspend', { ...user, username })} className="text-red-600 hover:underline text-sm">Suspend</button>
                                     <button onClick={() => openModal('email', { ...user, username })} className="text-gray-600 hover:text-black"><IconMail className="w-5 h-5"/></button>
                                 </td>

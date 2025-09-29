@@ -7,7 +7,7 @@ import UserManagement from './components/UserManagement';
 import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
 import Profile from './components/Profile';
-import { IconLogo, IconLoading, IconUser } from './components/Icons';
+import { IconLogo, IconUser } from './components/Icons';
 import { useEffect } from 'react';
 // eslint-disable-next-line
 import Modal from './components/Modal'; // Import the Modal component
@@ -70,22 +70,29 @@ function App() {
     const [loginView, setLoginView] = useState('login');
 
     // Functions
-    const onLogin = (email, role, firstName, lastName) => {
-        // For backend login, we receive email, role, and names directly
-        // Create a user object with the necessary data
-        const userData = {
-            email: email,
-            role: role,
-            fullName: firstName || email.split('@')[0], // Use first name from DB, fallback to email prefix
-            firstName: firstName,
-            lastName: lastName,
-            status: 'Active'
+    const onLogin = (userData) => {
+        // For backend login, we receive the complete user object
+        // Map the backend data to frontend format
+        const mappedUserData = {
+            email: userData.email,
+            role: userData.role === 'Admin' ? 'Administrator' : userData.role,
+            fullName: `${userData.first_name} ${userData.last_name}`,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            status: userData.account_status ? 'Active' : 'Inactive',
+            username: userData.username,
+            address: userData.address,
+            dateOfBirth: userData.date_of_birth,
+            securityAnswer: userData.q1_answer,
+            securityAnswer2: userData.q2_answer,
+            passwordExpires: userData.password_expires,
+            loginAttempts: userData.login_attempts || 0
         };
         
-        setUser(userData);
+        setUser(mappedUserData);
         setLoginView('login');
 
-        if (role === 'Admin' || role === 'Administrator') {
+        if (userData.role === 'Admin' || userData.role === 'Administrator') {
             setPage('users'); // Admin goes to user management
         } else {
             setPage('userhome'); // Regular users go to user home

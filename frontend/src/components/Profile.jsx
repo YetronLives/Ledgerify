@@ -251,27 +251,6 @@ const Profile = ({ user, updateUserInApp }) => {
                             </div>
                         </div>
                     </div>
-
-                    {/* Security Information (Read-only) */}
-                    {(user.securityAnswer || user.securityAnswer2) && (
-                        <div className="mt-8 pt-6 border-t border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4">Security Questions</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {user.securityAnswer && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-600 mb-1">Security Answer 1</label>
-                                        <p className="text-gray-800 p-3 bg-gray-50 rounded-lg">{user.securityAnswer}</p>
-                                    </div>
-                                )}
-                                {user.securityAnswer2 && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-600 mb-1">Security Answer 2</label>
-                                        <p className="text-gray-800 p-3 bg-gray-50 rounded-lg">{user.securityAnswer2}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

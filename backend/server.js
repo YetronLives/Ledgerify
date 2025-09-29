@@ -71,7 +71,7 @@ app.post('/Login', async (req, res) => {
 
   const { data: user, error: fetchErr } = await supabase
     .from('users')
-    .select('id, email, first_name, last_name, role, password_hash, account_status, login_attempts')
+    .select('id, email, first_name, last_name, role, password_hash, account_status, login_attempts, date_of_birth, address, username, q1_answer, q2_answer, password_expires')
     .eq('email', username)              // ← direct match, no normalization
     .maybeSingle();
 

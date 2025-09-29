@@ -41,7 +41,8 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
       }
 
       if (typeof onLogin === 'function') {
-        onLogin(data.user.email, data.user.role, data.user.first_name, data.user.last_name); // pass email, role, and names
+        // Pass the complete user data object
+        onLogin(data.user);
       } else {
         console.warn('onLogin prop is not a function. Showing success message instead.');
         setError('Logged in successfully (no onLogin handler wired).');
