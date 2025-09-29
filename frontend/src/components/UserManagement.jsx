@@ -89,7 +89,23 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
                                 <td className="p-3 font-medium">{user.fullName}</td>
                                 <td className="p-3">{user.role}</td>
                                 <td className="p-3"><span className={`px-3 py-1 text-sm rounded-full ${user.status === 'Active' ? 'bg-green-100 text-green-800' : user.status === 'Inactive' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'}`}>{user.status}</span></td>
-                                <td className="p-3">{user.passwordExpires}</td>
+                                <td className="p-3">
+                                    {user.passwordExpires ? (
+                                        <div>
+                                            <div className={`text-sm ${new Date(user.passwordExpires) < new Date() ? 'text-red-600 font-semibold' : new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
+                                                {new Date(user.passwordExpires).toLocaleDateString()}
+                                            </div>
+                                            {new Date(user.passwordExpires) < new Date() && (
+                                                <span className="text-xs text-red-500 font-bold">EXPIRED</span>
+                                            )}
+                                            {new Date(user.passwordExpires) >= new Date() && new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) && (
+                                                <span className="text-xs text-orange-500 font-bold">EXPIRES SOON</span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 text-sm">Not set</span>
+                                    )}
+                                </td>
                                 <td className="p-3 flex space-x-2 items-center">
                                     <button onClick={() => openModal('edit', { ...user, username })} className="text-blue-600 hover:underline text-sm">Edit</button>
                                     <button onClick={() => openModal('suspend', { ...user, username })} className="text-red-600 hover:underline text-sm">Suspend</button>

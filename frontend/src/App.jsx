@@ -51,7 +51,8 @@ function App() {
                 securityAnswer2: user.q2_answer,
                 address: user.address,
                 dateOfBirth: user.date_of_birth,
-                loginAttempts: user.login_attempts || 0
+                loginAttempts: user.login_attempts || 0,
+                passwordExpires: user.password_expires
               };
               return acc;
             }, {});

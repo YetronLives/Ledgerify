@@ -31,6 +31,9 @@ app.post('/CreateUser', async (req, res) => {
   password = "TempPass123!"
   username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
   username = username.toLowerCase()
+  password_expires = new Date();
+  password_expires.setDate(password_expires.getDate() + 3);
+  
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
@@ -49,6 +52,7 @@ app.post('/CreateUser', async (req, res) => {
     role : 'user',
     password_hash,
     date_of_birth,
+    password_expires: password_expires.toISOString(),
     account_status: false, 
 
   }]).select();
@@ -205,11 +209,16 @@ app.post('/forgot-password/reset', async (req, res) => {
     // Hash the new password
     const password_hash = await argon2.hash(newPassword, { type: argon2.argon2id });
 
+    // Calculate new password expiration date (3 days from now)
+    const password_expires = new Date();
+    password_expires.setDate(password_expires.getDate() + 3);
+
     // Update the password in the database
     const { data, error } = await supabase
       .from('users')
       .update({ 
         password_hash: password_hash,
+        password_expires: password_expires.toISOString(),
         login_attempts: 0  // Reset login attempts on password change
       })
       .eq('username', username.toLowerCase())
@@ -233,6 +242,128 @@ app.post('/forgot-password/reset', async (req, res) => {
   }
 });
 
+
+// Update User endpoint
+app.put('/users/:identifier', async (req, res) => {
+  const { identifier } = req.params; // Can be username or email
+  const { first_name, last_name, email, role, account_status, address, date_of_birth } = req.body;
+
+  if (!identifier) {
+    return res.status(400).json({ error: 'User identifier is required.' });
+  }
+
+  try {
+    // Build the update object with only provided fields
+    const updateData = {};
+    if (first_name !== undefined) updateData.first_name = first_name;
+    if (last_name !== undefined) updateData.last_name = last_name;
+    if (email !== undefined) updateData.email = email;
+    if (role !== undefined) updateData.role = role;
+    if (account_status !== undefined) updateData.account_status = account_status;
+    if (address !== undefined) updateData.address = address;
+    if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
+
+    // First, try to find the user by username, then by email
+    let { data: user, error: findError } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('username', identifier.toLowerCase())
+      .maybeSingle();
+
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "not found"
+      return res.status(500).json({ error: 'Database error while finding user.' });
+    }
+
+    // If not found by username, try by email
+    if (!user) {
+      const { data: userByEmail, error: findEmailError } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .eq('email', identifier)
+        .maybeSingle();
+
+      if (findEmailError && findEmailError.code !== 'PGRST116') {
+        return res.status(500).json({ error: 'Database error while finding user.' });
+      }
+
+      user = userByEmail;
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Update the user
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', user.id)
+      .select('id, username, email, first_name, last_name, role, account_status, address, date_of_birth, created_at, password_expires')
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: 'Failed to update user: ' + updateError.message });
+    }
+
+    return res.json({ 
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+
+  } catch (err) {
+    console.error('Update user error:', err);
+    return res.status(500).json({ error: 'Server error occurred while updating user.' });
+  }
+});
+
+// Endpoint to update existing users with password expiration dates
+app.post('/update-password-expires', async (req, res) => {
+  try {
+    // Get all users who don't have password_expires set
+    const { data: usersWithoutExpires, error: fetchError } = await supabase
+      .from('users')
+      .select('id, created_at, password_expires')
+      .is('password_expires', null);
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Failed to fetch users: ' + fetchError.message });
+    }
+
+    if (!usersWithoutExpires || usersWithoutExpires.length === 0) {
+      return res.json({ message: 'All users already have password expiration dates set.', updated: 0 });
+    }
+
+    let updatedCount = 0;
+
+    // Update each user with password_expires = created_at + 3 days
+    for (const user of usersWithoutExpires) {
+      const createdAt = new Date(user.created_at);
+      const passwordExpires = new Date(createdAt);
+      passwordExpires.setDate(passwordExpires.getDate() + 3);
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ password_expires: passwordExpires.toISOString() })
+        .eq('id', user.id);
+
+      if (!updateError) {
+        updatedCount++;
+      } else {
+        console.error(`Failed to update user ${user.id}:`, updateError);
+      }
+    }
+
+    return res.json({ 
+      message: `Successfully updated ${updatedCount} users with password expiration dates.`,
+      updated: updatedCount,
+      total: usersWithoutExpires.length
+    });
+
+  } catch (err) {
+    console.error('Update password expires error:', err);
+    return res.status(500).json({ error: 'Server error occurred while updating password expiration dates.' });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

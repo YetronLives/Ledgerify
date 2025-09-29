@@ -228,6 +228,27 @@ const Profile = ({ user, updateUserInApp }) => {
                                     </p>
                                 )}
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-1">Password Expiration</label>
+                                <div className="p-3 bg-gray-50 rounded-lg">
+                                    {user.passwordExpires ? (
+                                        <div>
+                                            <p className={`text-sm ${new Date(user.passwordExpires) < new Date() ? 'text-red-600 font-semibold' : new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) ? 'text-orange-600 font-semibold' : 'text-gray-800'}`}>
+                                                {new Date(user.passwordExpires).toLocaleDateString()}
+                                            </p>
+                                            {new Date(user.passwordExpires) < new Date() && (
+                                                <span className="text-xs text-red-500 font-bold">EXPIRED - Please contact administrator</span>
+                                            )}
+                                            {new Date(user.passwordExpires) >= new Date() && new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) && (
+                                                <span className="text-xs text-orange-500 font-bold">EXPIRES SOON - Consider changing password</span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 text-sm">Not set</span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
