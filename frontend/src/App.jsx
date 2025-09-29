@@ -1,24 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import RegistrationRequestScreen from './components/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/ForgotPasswordScreen';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
-import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
-import Profile from './components/Profile';
-import { IconLogo, IconLoading, IconUser } from './components/Icons';
-import { useEffect } from 'react';
+import { IconLogo, IconLoading, UserAvatar } from './components/Icons'; 
 // eslint-disable-next-line
-import Modal from './components/Modal'; // Import the Modal component
+import Modal from './components/Modal'; 
 
 // --- MOCK DATA ---
 const mockUsers = {
-    'meriam': { password: 'ledger1!', email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-12-25', securityQuestion: 'What was your first pet\'s name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Leo', securityAnswer2: 'Atlanta' },
+    'meriam': { password: 'ledger1!', email: 'meriam@ledgerify.com', fullName: 'Meriam', role: 'Administrator', status: 'Active', passwordExpires: '2025-10-02', securityQuestion: 'What was your first pet\'s name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Leo', securityAnswer2: 'Atlanta' }, 
     'shams': { password: 'ledger1!', email: 'shams@ledgerify.com', fullName: 'Shams', role: 'Manager', status: 'Active', passwordExpires: '2026-09-18', securityQuestion: 'What was the model of your first car?', securityQuestion2: 'What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones' },
     'constant': { password: 'ledger1!', email: 'constant@ledgerify.com', fullName: 'Constant', role: 'Accountant', status: 'Active', passwordExpires: '2025-01-10', securityQuestion: 'What is your mother\'s maiden name?', securityQuestion2: 'In what city were you born?', securityAnswer: 'Jones', securityAnswer2: 'Atlanta' },
     'dj': { password: 'ledger1!', email: 'dj@example.com', fullName: 'DJ', role: 'Accountant', status: 'Active', passwordExpires: '2025-11-11', securityQuestion: 'What was the model of your first car?', securityQuestion2: 'What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones'},
     'alix': { password: 'ledger1!', email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: 'In what city were you born?', securityQuestion2: 'What was the model of your first car?', securityAnswer: 'Atlanta', securityAnswer2: 'G-Wagon'},
+};
+
+// --- Function to generate a temporary, secure password ---
+const generateTemporaryPassword = (length = 10) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
 };
 
 
@@ -26,110 +33,175 @@ function App() {
 
     const allSecurityQuestions = Object.values(mockUsers).flatMap(u => [u.securityQuestion, u.securityQuestion2]);
     const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
+    const uniqueId = useId(); 
 
     // State
-    //const [users, setUsers] = useState(mockUsers);
-    const [users, setUsers] = useState([]);
-
-    useEffect(() => {
-
-        fetch('http://localhost:5000/users')
-
-          .then(response => response.json())
-
-          .then(data => {
-            const mappedUsers = data.users.reduce((acc, user) => {
-              acc[user.username || user.email] = {
-                email: user.email,
-                fullName: `${user.first_name} ${user.last_name}`,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                role: user.role === 'Admin' ? 'Administrator' : user.role,
-                status: user.account_status ? 'Active' : 'Inactive',
-                username: user.username,
-                securityAnswer: user.q1_answer,
-                securityAnswer2: user.q2_answer,
-                address: user.address,
-                dateOfBirth: user.date_of_birth,
-                loginAttempts: user.login_attempts || 0
-              };
-              return acc;
-            }, {});
-            setUsers(mappedUsers);
-
-          })
-
-          .catch(err => console.error(err));
-
-      }, []);
- 
+    const [users, setUsers] = useState(mockUsers);
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [loginView, setLoginView] = useState('login');
+    const [pendingRequests, setPendingRequests] = useState([]); 
+    const [notification, setNotification] = useState(null); 
 
     // Functions
-    const onLogin = (email, role, firstName, lastName) => {
-        // For backend login, we receive email, role, and names directly
-        // Create a user object with the necessary data
-        const userData = {
-            email: email,
-            role: role,
-            fullName: firstName || email.split('@')[0], // Use first name from DB, fallback to email prefix
-            firstName: firstName,
-            lastName: lastName,
-            status: 'Active'
-        };
+    const onLogin = (username, password) => {
+        const lowercasedUsername = username.toLowerCase();
+        const userData = users[lowercasedUsername];
         
-        setUser(userData);
-        setLoginView('login');
+        if (!userData || userData.password !== password) return 'Invalid';
+        
+        if (userData.status === 'Active' || (userData.status === 'Suspended' && userData.suspendUntil && new Date() > new Date(userData.suspendUntil))) {
+            
+            // --- MODIFIED: PASSWORD EXPIRATION CHECK ---
+            const passwordExpiryDate = new Date(userData.passwordExpires);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            passwordExpiryDate.setHours(0, 0, 0, 0);
 
-        if (role === 'Admin' || role === 'Administrator') {
-            setPage('users'); // Admin goes to user management
+            const oneDay = 24 * 60 * 60 * 1000;
+            const diffTime = passwordExpiryDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / oneDay);
+            
+            if (diffDays <= 3) {
+                let message;
+                let type;
+                if (diffDays <= 0) {
+                     message = "ERROR: Your password has EXPIRED! Please use the 'Forgot Password' link to reset it immediately.";
+                     type = 'error';
+                } else {
+                     message = `WARNING: Your password will expire in ${diffDays} day${diffDays !== 1 ? 's' : ''} on ${userData.passwordExpires}! Please change it now.`;
+                     type = 'warning';
+                }
+                setNotification({ type, message });
+            } else {
+                setNotification(null);
+            }
+            // --- END MODIFIED PASSWORD EXPIRATION CHECK ---
+
+            setUser({ username: lowercasedUsername, ...userData });
+            setLoginView('login');
+            return undefined;
         } else {
-            setPage('userhome'); // Regular users go to user home
+            return userData.status;
         }
-        
-        return undefined;
     };
 
     const updateUserInApp = (username, updatedData) => {
         setUsers(prevUsers => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
-        
-        // Also update the current user if they're the one being updated
-        if (user && (user.username === username || user.email === username)) {
-            setUser(prevUser => ({ ...prevUser, ...updatedData }));
-        }
     };
 
     const addUserToApp = (newUser) => {
+        if (!newUser || typeof newUser.username !== 'string' || newUser.username.trim() === '') {
+            console.error("CRITICAL ERROR: Attempted to add user without a valid username.", newUser);
+            return;
+        }
+
         const username = newUser.username.toLowerCase();
-        // Remove username from the object before setting it as the value
-        const { username: _, ...userData } = newUser;
-        setUsers(prevUsers => ({ ...prevUsers, [username]: userData }));
+        const fullName = newUser.fullName || `${newUser.firstName} ${newUser.lastName}`;
+
+
+        const newUserData = {
+            password: newUser.tempPassword || newUser.password || 'ledger1!', 
+            email: newUser.email,
+            fullName: fullName,
+            role: newUser.role,
+            status: newUser.status || 'Active', 
+            passwordExpires: newUser.passwordExpires || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+            securityQuestion: newUser.securityQuestion1 || newUser.securityQuestion,
+            securityQuestion2: newUser.securityQuestion2 || newUser.securityQuestion2,
+            securityAnswer: newUser.securityAnswer1 || newUser.securityAnswer,
+            securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
+        };
+
+        setUsers(prevUsers => ({ ...prevUsers, [username]: newUserData }));
+        console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
+    
+    const addRegistrationRequest = (requestData) => {
+        const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        setPendingRequests(prev => [...prev, { id: requestId, ...requestData }]);
+        console.log("[App] New Registration Request Added:", requestId);
+    }
+    
+    const handleRequest = (requestId, action) => {
+        setPendingRequests(prevRequests => {
+            const requestIndex = prevRequests.findIndex(req => req.id === requestId);
+            if (requestIndex === -1) return prevRequests;
+
+            const request = prevRequests[requestIndex];
+
+            if (action === 'approve') {
+                const now = new Date();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = String(now.getFullYear()).slice(-2);
+
+                const firstNameInitial = request.firstName.charAt(0).toLowerCase();
+                const fullLastName = request.lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const dateSuffix = month + year;
+
+                const initialBaseUsername = firstNameInitial + fullLastName + dateSuffix;
+
+                let username = initialBaseUsername;
+                let counter = 1;
+                while (users[username]) {
+                    username = initialBaseUsername + counter; 
+                    counter++;
+                }
+                
+                const tempPassword = generateTemporaryPassword();
+                
+                const userToApprove = { 
+                    ...request, 
+                    username, 
+                    tempPassword, 
+                    status: 'Active' 
+                };
+                addUserToApp(userToApprove); 
+                
+                const loginLink = window.location.origin;
+                
+                console.log(`[App] Approval Email SIMULATED SENT to ${request.email}`);
+                console.log(`[App] New User Credentials: Username: ${username}, Password: ${tempPassword}`);
+                
+                alert(
+                    `SUCCESS! User Approved.\n\n` +
+                    `An email with the following details has been 'sent' to ${request.email}:\n\n` +
+                    `LOGIN LINK: ${loginLink}\n` +
+                    `TEMPORARY USERNAME: ${username}\n` +
+                    `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
+                    `The user should use these credentials to log in for the first time.`
+                );
+            } else {
+                console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
+            }
+
+            return prevRequests.filter(req => req.id !== requestId);
+        });
+    }
 
     const logout = () => {
         setUser(null);
         setPage('dashboard');
+        setNotification(null); 
     };
+    
+    // Notification clear effect removed to keep banner visible until dismissed/logout
 
     // Render Logic
     if (!user) {
-        if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
-        if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} />;
+        if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} onSubmitRequest={addRegistrationRequest} />; 
+        if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={users} updateUserInApp={updateUserInApp} />;
         return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={users} />;
     }
     
     const navItems = [
-        { id: 'userhome', label: 'Home', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'dashboard', label: 'Dashboard', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'accounts', label: 'Chart of Accounts', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'journal', label: 'Journal Entries', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'reports', label: 'Financial Reports', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'users', label: 'User Management', roles: ['Admin', 'Administrator'] },
-        { id: 'profile', label: 'Profile', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
-        { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'dashboard', label: 'Dashboard', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'accounts', label: 'Chart of Accounts', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'journal', label: 'Journal Entries', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'reports', label: 'Financial Reports', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'users', label: 'User Management', roles: ['Administrator'] },
+        { id: 'help', label: 'Help', roles: ['Administrator', 'Manager', 'Accountant'] },
     ];
 
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
@@ -163,35 +235,29 @@ function App() {
                     </button>
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
                     <div className="flex items-center space-x-4">
+                        <UserAvatar className="w-10 h-10" /> 
                         <div className="text-right">
-                           <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
+                           <span className="text-gray-600 font-semibold">{user.fullName}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
                         </div>
-                        <button 
-                            onClick={() => setPage('profile')}
-                            className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                            title="Profile"
-                        >
-                            {user.profileImage ? (
-                                <img 
-                                    src={user.profileImage} 
-                                    alt="Profile" 
-                                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-300"
-                                />
-                            ) : (
-                                <IconUser className="w-6 h-6 text-gray-600 m-1" />
-                            )}
-                        </button>
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
-                    {page === 'userhome' && <UserHome user={user} />}
-                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} />}
+                    {notification && (
+                        <div className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'}`}>
+                            <span>{notification.message}</span>
+                            <button onClick={() => setNotification(null)} className="text-white hover:text-gray-200 font-bold ml-4">
+                                &times;
+                            </button>
+                        </div>
+                    )}
+
+                    {/* MODIFIED: PASS setPage DOWN TO DASHBOARD */}
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} />} 
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
-                    {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
                     {page === 'help' && <PlaceholderScreen title="Help" message="Welcome to the Help Center. Instructions on using the app will appear here." />}
                 </main>
             </div>
