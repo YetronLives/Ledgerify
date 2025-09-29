@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { IconCheckCircle, IconLoading } from './Icons';
 
-const RegistrationRequestScreen = ({ setLoginView }) => {
+const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Added onSubmitRequest prop
     const [submitted, setSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -51,8 +51,13 @@ const RegistrationRequestScreen = ({ setLoginView }) => {
         await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
         
         const registrationData = Object.fromEntries(formData.entries());
-        console.log("Registration Request Data:", registrationData);
+        
+        // Pass the request data up to App.jsx for queuing
+        if (onSubmitRequest) {
+            onSubmitRequest(registrationData);
+        }
 
+        // Simulating completion only after queuing
         setIsLoading(false);
         setSubmitted(true);
     };
@@ -73,12 +78,12 @@ const RegistrationRequestScreen = ({ setLoginView }) => {
                         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
                         <form onSubmit={handleSubmit}>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-gray-600 mb-2">First Name</label><input required className="w-full px-4 py-2 border rounded-lg"/></div>
-                                <div><label className="block text-gray-600 mb-2">Last Name</label><input required className="w-full px-4 py-2 border rounded-lg"/></div>
+                                <div><label className="block text-gray-600 mb-2">First Name</label><input name="firstName" required className="w-full px-4 py-2 border rounded-lg"/></div>
+                                <div><label className="block text-gray-600 mb-2">Last Name</label><input name="lastName" required className="w-full px-4 py-2 border rounded-lg"/></div>
                              </div>
-                             <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input required type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
-                             <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
-                             <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input name="email" required type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea name="address" required className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
+                             <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input name="dateOfBirth" required type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
                              
                              {/* --- Security Question 1 --- */}
                              <div className="mt-4">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IconPlusCircle, IconMail } from './Icons';
 import CreateUserForm from './CreateUserForm';
 import EditUserForm from './EditUserForm';
@@ -7,6 +7,7 @@ import EmailForm from './EmailForm';
 import Modal from './Modal';
 
 const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
+    // The local state should primarily derive from the prop to stay synchronized
     const [users, setUsers] = useState(mockUsers);
     const [filter, setFilter] = useState('all');
     const [modalContent, setModalContent] = useState(null);
@@ -26,6 +27,12 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
         setUsers(updatedUsers);
         addUserToApp(newUser);
     };
+
+    // IMPORTANT FIX: Synchronize local state with prop whenever mockUsers changes 
+    useEffect(() => {
+        setUsers(mockUsers);
+    }, [mockUsers]);
+
 
     const filteredUsers = Object.entries(users).filter(([, user]) => {
         if (filter === 'expired') {
