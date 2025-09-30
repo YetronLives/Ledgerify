@@ -26,6 +26,14 @@ export const IconLogo = ({ className }) => (
     </svg>
 );
 
+// --- ADDED: User Avatar Placeholder ---
+export const UserAvatar = ({ className = 'w-10 h-10' }) => (
+    // Uses a standard human-figure SVG as a placeholder for the profile picture
+    <svg className={`text-gray-400 bg-gray-100 rounded-full ${className}`} fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 12c2.485 0 4.5-2.015 4.5-4.5S14.485 3 12 3 7.5 5.015 7.5 7.5 9.515 12 12 12zm0 2c-2.76 0-5.5.99-7 2.75V21h14v-4.25c-1.5-1.76-4.24-2.75-7-2.75z"/>
+    </svg>
+);
+// --- END ADDED ---
 export const IconUsers = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 export const IconDashboard = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20V16"/></svg>;
 export const IconChartOfAccounts = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
