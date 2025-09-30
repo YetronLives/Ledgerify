@@ -4,8 +4,12 @@ import RegistrationRequestScreen from './components/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/ForgotPasswordScreen';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
+import UserHome from './components/UserHome';
 import PlaceholderScreen from './components/PlaceholderScreen';
 import { IconLogo, IconLoading, UserAvatar } from './components/Icons'; 
+import Profile from './components/Profile';
+import { IconLogo, IconLoading, IconUser } from './components/Icons';
+import { useEffect } from 'react';
 // eslint-disable-next-line
 import Modal from './components/Modal'; 
 
@@ -36,7 +40,41 @@ function App() {
     const uniqueId = useId(); 
 
     // State
-    const [users, setUsers] = useState(mockUsers);
+    //const [users, setUsers] = useState(mockUsers);
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+
+        fetch('http://localhost:5000/users')
+
+          .then(response => response.json())
+
+          .then(data => {
+            const mappedUsers = data.users.reduce((acc, user) => {
+              acc[user.username || user.email] = {
+                email: user.email,
+                fullName: `${user.first_name} ${user.last_name}`,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                role: user.role === 'Admin' ? 'Administrator' : user.role,
+                status: user.account_status ? 'Active' : 'Inactive',
+                username: user.username,
+                securityAnswer: user.q1_answer,
+                securityAnswer2: user.q2_answer,
+                address: user.address,
+                dateOfBirth: user.date_of_birth,
+                loginAttempts: user.login_attempts || 0
+              };
+              return acc;
+            }, {});
+            setUsers(mappedUsers);
+
+          })
+
+          .catch(err => console.error(err));
+
+      }, []);
+ 
     const [user, setUser] = useState(null);
     const [page, setPage] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -82,13 +120,39 @@ function App() {
             setUser({ username: lowercasedUsername, ...userData });
             setLoginView('login');
             return undefined;
+          
+    const onLogin = (email, role, firstName, lastName) => {
+        // For backend login, we receive email, role, and names directly
+        // Create a user object with the necessary data
+        const userData = {
+            email: email,
+            role: role,
+            fullName: firstName || email.split('@')[0], // Use first name from DB, fallback to email prefix
+            firstName: firstName,
+            lastName: lastName,
+            status: 'Active'
+        };
+        
+        setUser(userData);
+        setLoginView('login');
+
+        if (role === 'Admin' || role === 'Administrator') {
+            setPage('users'); // Admin goes to user management
+
         } else {
-            return userData.status;
+            setPage('userhome'); // Regular users go to user home
         }
+        
+        return undefined;
     };
 
     const updateUserInApp = (username, updatedData) => {
         setUsers(prevUsers => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
+        
+        // Also update the current user if they're the one being updated
+        if (user && (user.username === username || user.email === username)) {
+            setUser(prevUser => ({ ...prevUser, ...updatedData }));
+        }
     };
 
     const addUserToApp = (newUser) => {
@@ -192,16 +256,20 @@ function App() {
     if (!user) {
         if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} onSubmitRequest={addRegistrationRequest} />; 
         if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} mockUsers={users} updateUserInApp={updateUserInApp} />;
+        if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
+        if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} />;
         return <LoginScreen onLogin={onLogin} setLoginView={setLoginView} mockUsers={users} />;
     }
     
     const navItems = [
-        { id: 'dashboard', label: 'Dashboard', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'accounts', label: 'Chart of Accounts', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'journal', label: 'Journal Entries', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'reports', label: 'Financial Reports', roles: ['Administrator', 'Manager', 'Accountant'] },
-        { id: 'users', label: 'User Management', roles: ['Administrator'] },
-        { id: 'help', label: 'Help', roles: ['Administrator', 'Manager', 'Accountant'] },
+        { id: 'userhome', label: 'Home', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'dashboard', label: 'Dashboard', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'accounts', label: 'Chart of Accounts', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'journal', label: 'Journal Entries', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'reports', label: 'Financial Reports', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'users', label: 'User Management', roles: ['Admin', 'Administrator'] },
+        { id: 'profile', label: 'Profile', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
+        { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
     ];
 
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
@@ -237,9 +305,24 @@ function App() {
                     <div className="flex items-center space-x-4">
                         <UserAvatar className="w-10 h-10" /> 
                         <div className="text-right">
-                           <span className="text-gray-600 font-semibold">{user.fullName}</span>
+                           <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
                         </div>
+                        <button 
+                            onClick={() => setPage('profile')}
+                            className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                            title="Profile"
+                        >
+                            {user.profileImage ? (
+                                <img 
+                                    src={user.profileImage} 
+                                    alt="Profile" 
+                                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-300"
+                                />
+                            ) : (
+                                <IconUser className="w-6 h-6 text-gray-600 m-1" />
+                            )}
+                        </button>
                     </div>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
@@ -254,10 +337,13 @@ function App() {
 
                     {/* MODIFIED: PASS setPage DOWN TO DASHBOARD */}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} />} 
+                    {page === 'userhome' && <UserHome user={user} />}
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} />}
                     {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
+                    {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
                     {page === 'help' && <PlaceholderScreen title="Help" message="Welcome to the Help Center. Instructions on using the app will appear here." />}
                 </main>
             </div>

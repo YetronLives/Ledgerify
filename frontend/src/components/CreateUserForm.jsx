@@ -44,6 +44,11 @@ function CreateUserForm({ close, addUserToApp }) {
             </select>
           </div>
           <div><label className="block text-gray-600 mb-2">Temporary Password</label><input name="password" type="password" required className="w-full px-4 py-2 border rounded-lg"/></div>
+          <div><label className="block text-gray-600 mb-2">Temporary Password</label><input name="password" type="password" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+          <div><label className="block text-gray-600 mb-2">Security Question 1</label><input name="question1" type="text" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., What was your first pet's name?"/></div>
+          <div><label className="block text-gray-600 mb-2">Security Answer 1</label><input name="q1_answer" type="text" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+          <div><label className="block text-gray-600 mb-2">Security Question 2</label><input name="question2" type="text" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., In what city were you born?"/></div>
+          <div><label className="block text-gray-600 mb-2">Security Answer 2</label><input name="q2_answer" type="text" required className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
           <div className="flex justify-end space-x-2 pt-4">
             <button type="button" onClick={close} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
             <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded-lg disabled:opacity-50 flex items-center justify-center space-x-2">

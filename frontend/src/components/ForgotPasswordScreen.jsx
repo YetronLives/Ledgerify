@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { IconCheckCircle, IconLoading } from './Icons';
 
-const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
+const ForgotPasswordScreen = ({ setLoginView }) => {
     const [step, setStep] = useState(1);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -15,24 +15,43 @@ const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const validatePassword = (password) => {
-        const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
-        return regex.test(password);
+        return password.length >= 6;
     };
 
     const handleUserSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        const foundUser = mockUsers[username.toLowerCase()];
-        
-        setIsLoading(false);
-        if (foundUser && foundUser.email.toLowerCase() === email.toLowerCase()) {
-            setUser({ username: username.toLowerCase(), ...foundUser });
-            setStep(2);
-        } else {
-            setError('Invalid username or email.');
+        try {
+            const response = await fetch('http://localhost:5000/forgot-password/verify-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username.toLowerCase(),
+                    email: email.toLowerCase()
+                })
+            });
+
+            const data = await response.json();
+            setIsLoading(false);
+
+            if (response.ok) {
+                setUser({ 
+                    username: username.toLowerCase(), 
+                    ...data.user,
+                    securityQuestion: data.user.question1,
+                    securityQuestion2: data.user.question2
+                });
+                setStep(2);
+            } else {
+                setError(data.error || 'Invalid username or email.');
+            }
+        } catch (err) {
+            setIsLoading(false);
+            setError('Network error. Please try again.');
         }
     };
 
@@ -40,12 +59,31 @@ const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsLoading(false);
-        if (user && answer1.toLowerCase() === user.securityAnswer.toLowerCase() && answer2.toLowerCase() === user.securityAnswer2.toLowerCase()) {
-            setStep(3);
-        } else {
-            setError('One or more answers are incorrect. Please try again.');
+        
+        try {
+            const response = await fetch('http://localhost:5000/forgot-password/verify-answers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: user.username,
+                    answer1: answer1,
+                    answer2: answer2
+                })
+            });
+
+            const data = await response.json();
+            setIsLoading(false);
+
+            if (response.ok) {
+                setStep(3);
+            } else {
+                setError(data.error || 'One or more answers are incorrect. Please try again.');
+            }
+        } catch (err) {
+            setIsLoading(false);
+            setError('Network error. Please try again.');
         }
     };
     
@@ -59,15 +97,36 @@ const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
         }
 
         if (!validatePassword(newPassword)) {
-            setError('Password does not meet the requirements.');
+            setError('Password must be at least 6 characters long.');
             return;
         }
 
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        updateUserInApp(user.username, { password: newPassword });
-        setSubmitted(true);
-        setIsLoading(false);
+        
+        try {
+            const response = await fetch('http://localhost:5000/forgot-password/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: user.username,
+                    newPassword: newPassword
+                })
+            });
+
+            const data = await response.json();
+            setIsLoading(false);
+
+            if (response.ok) {
+                setSubmitted(true);
+            } else {
+                setError(data.error || 'Failed to reset password. Please try again.');
+            }
+        } catch (err) {
+            setIsLoading(false);
+            setError('Network error. Please try again.');
+        }
     };
     
     return (
@@ -106,7 +165,7 @@ const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
                         {step === 3 && user && (
                             <form onSubmit={handleFinalSubmit}>
                                 <p className="text-center text-gray-500 mb-6">Please enter your new password.</p>
-                                <div className="mb-4"><label className="block text-gray-600 mb-2">New Password</label><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/><p className="text-xs text-gray-500 mt-1">Min. 8 characters, with a letter, a number, and a special character.</p></div>
+                                <div className="mb-4"><label className="block text-gray-600 mb-2">New Password</label><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/><p className="text-xs text-gray-500 mt-1">Minimum 6 characters.</p></div>
                                 <div className="mb-6"><label className="block text-gray-600 mb-2">Confirm New Password</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="********" className="w-full px-4 py-2 border rounded-lg"/></div>
                                 {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
                                 <button type="submit" disabled={isLoading} className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">{isLoading && <IconLoading className="w-5 h-5" />}<span>Reset Password</span></button>

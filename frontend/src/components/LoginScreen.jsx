@@ -5,46 +5,56 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [attempts, setAttempts] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        if (attempts >= 2) {
-            setError('Maximum login attempts exceeded. Your account is temporarily locked.');
-            return;
-        }
-        setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+  const handleSubmit = (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError('');
 
-        let loginUsername = username.toLowerCase();
+  const payload = { username, password };
+  console.log('Submitting payload:', payload);
 
-        // Check if the input is an email
-        if (username.includes('@')) {
-            const foundUserEntry = Object.entries(mockUsers).find(([, user]) => user.email.toLowerCase() === username.toLowerCase());
-            if (foundUserEntry) {
-                loginUsername = foundUserEntry[0];
-            }
-        }
+  fetch('http://localhost:5000/Login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(async (resp) => {
+      console.log('Response:', resp.status, resp.statusText, resp.headers.get('content-type'));
+      const raw = await resp.text();
+      console.log('Raw body:', raw);
 
-        const loginResult = onLogin(loginUsername, password);
-        setIsLoading(false);
+      let data = null;
+      if (raw && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
+        data = JSON.parse(raw);
+      }
+      console.log('Parsed data:', data);
 
-        if (loginResult) {
-            switch (loginResult) {
-                case 'Inactive':
-                    setError('This account is inactive. Please contact an administrator.');
-                    break;
-                case 'Suspended':
-                    setError('This account is suspended. Please contact an administrator.');
-                    break;
-                default:
-                    setError('Invalid username or password.');
-                    setAttempts(attempts + 1);
-            }
-        }
-    };
+      if (!resp.ok) {
+        setError((data && data.error) || `Login failed (${resp.status}).`);
+        return;
+      }
+      if (!data || !data.user) {
+        setError('Login failed. Invalid server response.');
+        return;
+      }
+
+      if (typeof onLogin === 'function') {
+        onLogin(data.user.email, data.user.role, data.user.first_name, data.user.last_name); // pass email, role, and names
+      } else {
+        console.warn('onLogin prop is not a function. Showing success message instead.');
+        setError('Logged in successfully (no onLogin handler wired).');
+      }
+    })
+    .catch((err) => {
+      console.error('Fetch failed:', err);
+      setError('Network error. Check CORS/URL and backend logs.');
+    })
+    .finally(() => setIsLoading(false));
+};
+
+        
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">

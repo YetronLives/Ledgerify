@@ -23,6 +23,8 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
     const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
 
 
+    const availableQ2 = securityQuestions.filter(q => q !== selectedQ1);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -39,9 +41,39 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
         }
 
         // Simulating completion only after queuing
+
+        const formData = new FormData(e.target);
+        const user_data = {
+            first_name: formData.get('first_name'),
+            last_name: formData.get('last_name'),
+            email: formData.get('email'),
+            question1: formData.get('question1'),
+            question2: formData.get('question2'),
+            address: formData.get('address'),
+            q1_answer: formData.get('q1_answer'),
+            q2_answer: formData.get('q2_answer'),
+            date_of_birth: formData.get('date_of_birth'),
+    
+        };
+        try {
+            const response = await fetch('http://localhost:5000/CreateUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user_data),
+            });
+            const result = await response.json();
+            if (response.ok) {
+                setSubmitted(true);
+            } else {
+                    alert(result.error);
+            }
+        } catch (error) {
+            alert('Network error. Please try again later.');
+        }
         setIsLoading(false);
-        setSubmitted(true);
     };
+
+    
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4 font-sans">
@@ -76,6 +108,16 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                                     onChange={e => setSelectedQ1(e.target.value)} 
                                     className="w-full px-4 py-2 border rounded-lg bg-white"
                                 >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-gray-600 mb-2">First Name</label><input required name = "first_name" className="w-full px-4 py-2 border rounded-lg"/></div>
+                                <div><label className="block text-gray-600 mb-2">Last Name</label><input required name = "last_name" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            </div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Email</label><input required name="email" type="email" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Address</label><textarea required name= "address" className="w-full px-4 py-2 border rounded-lg h-20"></textarea></div>
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Date of Birth</label><input required name="date_of_birth" type="date" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 1</label>
+                                <select required name="question1" value={selectedQ1} onChange={e => setSelectedQ1(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
                                     <option value="" disabled>Select a question</option>
                                     {securityQuestions.map((q, i) => <option key={`q1-${i}`} value={q}>{q}</option>)}
                                 </select>
@@ -93,6 +135,11 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                                     className="w-full px-4 py-2 border rounded-lg bg-white" 
                                     disabled={!selectedQ1}
                                 >
+
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 1</label><input name="q1_answer" required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
+                            
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Security Question 2</label>
+                                <select required name="question2" value={selectedQ2} onChange={e => setSelectedQ2(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white" disabled={!selectedQ1}>
                                     <option value="" disabled>Select a question</option>
                                     {availableQ2.map((q, i) => <option key={`q2-${i}`} value={q}>{q}</option>)}
                                 </select>
@@ -109,6 +156,8 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                                 </select>
                             </div>
                                 
+
+                            <div className="mt-4"><label className="block text-gray-600 mb-2">Answer 2</label><input  name="q2_answer"  required type="text" className="w-full px-4 py-2 border rounded-lg"/></div>
 
                             <button type="submit" disabled={isLoading} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                                 {isLoading && <IconLoading className="w-5 h-5" />}
