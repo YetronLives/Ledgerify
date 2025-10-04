@@ -3,7 +3,7 @@ import { IconPlusCircle, IconMail } from '../ui/Icons';
 import CreateUserForm from './CreateUserForm';
 import EditUserForm from './EditUserForm';
 import SuspendUserForm from './SuspendUserForm';
-import DeactivateUserForm from './DeactivateUserForm';
+import DeactivateUserForm from '../DeactivateUserForm';
 import EmailForm from './EmailForm';
 import Modal from '../ui/Modal';
 

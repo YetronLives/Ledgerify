@@ -8,6 +8,10 @@ import PlaceholderScreen from './components/ui/PlaceholderScreen';
 import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger'; 
 import { IconLogo, IconLoading, UserAvatar } from './components/ui/Icons'; 
+import { IconUser} from './components/ui/Icons';
+import UserHome from './components/UserHome';
+import Profile from './components/Profile'
+
 // eslint-disable-next-line
 import Modal from './components/ui/Modal'; 
 

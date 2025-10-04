@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconUser } from './Icons';
+import { IconUser } from './ui/Icons';
 
 const Profile = ({ user, updateUserInApp }) => {
     const [profileImage, setProfileImage] = useState(user.profileImage || null);
