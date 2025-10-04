@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconLogo, IconLoading } from './Icons';
+import { IconLogo, IconLoading } from '../ui/Icons';
 
 function LoginScreen({ onLogin, setLoginView, mockUsers }) {
     const [username, setUsername] = useState('');

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { IconLoading } from './Icons';
+import { IconLoading } from '../ui/Icons';
 
 function EditUserForm({ user, close, updateUser }) {
     const [isLoading, setIsLoading] = useState(false);
