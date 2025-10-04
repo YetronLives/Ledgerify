@@ -146,7 +146,7 @@ function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage })
 
     return (
         <div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Welcome, {user.fullName}!</h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">Welcome, {user.firstName || user.fullName}!</h2>
             
             {/* 1. Request Inbox (Visible to Admin only) */}
             {isAdmin && (
