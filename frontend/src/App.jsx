@@ -1,13 +1,15 @@
 import React, { useState, useId, useEffect } from 'react';
-import LoginScreen from './components/LoginScreen';
-import RegistrationRequestScreen from './components/RegistrationRequestScreen';
-import ForgotPasswordScreen from './components/ForgotPasswordScreen';
-import Dashboard from './components/Dashboard';
-import UserManagement from './components/UserManagement';
-import PlaceholderScreen from './components/PlaceholderScreen';
-import { IconLogo, IconLoading, UserAvatar } from './components/Icons'; 
+import LoginScreen from './components/auth/LoginScreen';
+import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
+import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
+import Dashboard from './components/ui/Dashboard';
+import UserManagement from './components/userManagement/UserManagement';
+import PlaceholderScreen from './components/ui/PlaceholderScreen';
+import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
+import AccountLedger from './components/chartOfAccounts/AccountLedger'; 
+import { IconLogo, IconLoading, UserAvatar } from './components/ui/Icons'; 
 // eslint-disable-next-line
-import Modal from './components/Modal'; 
+import Modal from './components/ui/Modal'; 
 
 // --- MOCK DATA ---
 const mockUsers = {
@@ -17,6 +19,19 @@ const mockUsers = {
     'dj': { password: 'ledger1!', email: 'dj@example.com', fullName: 'DJ', role: 'Accountant', status: 'Active', passwordExpires: '2025-11-11', securityQuestion: 'What was the model of your first car?', securityQuestion2: 'What is your mother\'s maiden name?', securityAnswer: 'Civic', securityAnswer2: 'Jones'},
     'alix': { password: 'ledger1!', email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: 'In what city were you born?', securityQuestion2: 'What was the model of your first car?', securityAnswer: 'Atlanta', securityAnswer2: 'G-Wagon'},
 };
+
+const initialAccounts = [
+    // Assets (1000-1999)
+    {number: '1010', name: 'Cash', description: 'Cash in checking and savings accounts.', normalSide: 'Debit', category: 'Assets', subcategory: 'Current Assets', initialBalance: 25000.00, debit: 5000, credit: 2000, balance: 28000.00, addedDate: '2025-01-15T10:00:00Z', userId: 'meriam',  order: '01', statement: 'BS', comment: 'Main operating account.'},
+    // Liabilities (2000-2999)
+    {number: '2010', name: 'Accounts Payable', description: 'Money the company owes to suppliers.', normalSide: 'Credit', category: 'Liabilities', subcategory: 'Current Liabilities', initialBalance: 8000.00, debit: 3000, credit: 10000, balance: 15000.00, addedDate: '2025-02-01T14:00:00Z', userId: 'meriam', order: '10', statement: 'BS', comment: 'Vendor invoices.'},
+    // Equity (3000-3999)
+    {number: '3010', name: 'Common Stock', description: 'Capital invested by shareholders.', normalSide: 'Credit', category: 'Equity', subcategory: 'Contributed Capital', initialBalance: 50000.00, debit: 0, credit: 0, balance: 50000.00, addedDate: '2025-01-10T09:00:00Z', userId: 'meriam', order: '20', statement: 'BS', comment: ''},
+     // Revenue (4000-4999)
+    {number: '4010', name: 'Service Revenue', description: 'Revenue from primary business operations.', normalSide: 'Credit', category: 'Revenue', subcategory: 'Operating Revenue', initialBalance: 0, debit: 0, credit: 85000, balance: 85000.00, addedDate: '2025-03-01T12:00:00Z', userId: 'meriam', order: '30', statement: 'IS', comment: 'YTD through Q3'},
+    // Expenses (5000-5999)
+    {number: '5010', name: 'Salaries Expense', description: 'Wages and salaries paid to employees.', normalSide: 'Debit', category: 'Expenses', subcategory: 'Operating Expenses', initialBalance: 0, debit: 45000, credit: 0, balance: 45000.00, addedDate: '2025-03-01T12:05:00Z', userId: 'meriam', order: '40', statement: 'IS', comment: ''},
+];
 
 // --- Function to generate a temporary, secure password ---
 const generateTemporaryPassword = (length = 10) => {
@@ -43,6 +58,7 @@ function App() {
     const [loginView, setLoginView] = useState('login');
     const [pendingRequests, setPendingRequests] = useState([]); 
     const [notification, setNotification] = useState(null); 
+    const [selectedLedgerAccount, setSelectedLedgerAccount] = useState(null); // State for ledger
 
     // Functions
     const onLogin = (username, password) => {
@@ -252,9 +268,9 @@ function App() {
                         </div>
                     )}
 
-                    {/* MODIFIED: PASS setPage DOWN TO DASHBOARD */}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} />} 
-                    {page === 'accounts' && <PlaceholderScreen title="Chart of Accounts" message="Chart of Accounts module under construction." />}
+                    {page === 'accounts' && <ChartOfAccounts initialAccounts={initialAccounts} currentUser={user} setPage={setPage} setSelectedLedgerAccount={setSelectedLedgerAccount} />}
+                    {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => setPage('accounts')} />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}

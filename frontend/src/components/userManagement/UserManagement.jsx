@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { IconPlusCircle, IconMail } from './Icons';
+import { IconPlusCircle, IconMail } from '../ui/Icons';
 import CreateUserForm from './CreateUserForm';
 import EditUserForm from './EditUserForm';
 import SuspendUserForm from './SuspendUserForm';
 import EmailForm from './EmailForm';
-import Modal from './Modal';
+import Modal from '../ui/Modal';
 
 const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
     // The local state should primarily derive from the prop to stay synchronized

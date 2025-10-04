@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconLoading } from './Icons';
+import { IconLoading } from '../ui/Icons';
 
 function EmailForm({ user, close }) {
     const [isLoading, setIsLoading] = useState(false);

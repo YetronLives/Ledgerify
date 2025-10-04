@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconCheckCircle, IconLoading } from './Icons';
+import { IconCheckCircle, IconLoading } from '../ui/Icons';
 
 const ForgotPasswordScreen = ({ setLoginView, mockUsers, updateUserInApp }) => {
     const [step, setStep] = useState(1);

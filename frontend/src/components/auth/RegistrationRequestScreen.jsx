@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconCheckCircle, IconLoading } from './Icons';
+import { IconCheckCircle, IconLoading } from '../ui/Icons';
 
 const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Added onSubmitRequest prop
     const [submitted, setSubmitted] = useState(false);
