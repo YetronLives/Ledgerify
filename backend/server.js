@@ -1,11 +1,15 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const cors = require('cors');
+
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 
-const cors = require('cors');
 app.use(cors());
 
 const supabaseUrl = process.env.SUPABASE_URL
@@ -298,7 +302,7 @@ app.put('/users/:identifier', async (req, res) => {
       .from('users')
       .update(updateData)
       .eq('id', user.id)
-      .select('id, username, email, first_name, last_name, role, account_status, address, date_of_birth, created_at, password_expires')
+      .select('id, username, email, first_name, last_name, role, account_status, address, date_of_birth, created_at, password_expires, profile_image_url')
       .single();
 
     if (updateError) {
