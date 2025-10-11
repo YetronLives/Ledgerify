@@ -286,7 +286,7 @@ function App() {
                     </button>
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
                     <div className="flex items-center space-x-4">
-                        <div className="text-right">
+                        <div className="text-center">
                            <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
                            <span className="text-gray-500 text-sm block">{user.username}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
