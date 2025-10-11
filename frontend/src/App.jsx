@@ -7,7 +7,7 @@ import UserManagement from './components/userManagement/UserManagement';
 import PlaceholderScreen from './components/ui/PlaceholderScreen';
 import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger'; 
-import { IconLogo, IconLoading, UserAvatar } from './components/ui/Icons'; 
+import { IconLogo } from './components/ui/Icons'; 
 import { IconUser} from './components/ui/Icons';
 import UserHome from './components/UserHome';
 import Profile from './components/Profile'
@@ -286,7 +286,6 @@ function App() {
                     </button>
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
                     <div className="flex items-center space-x-4">
-                        <UserAvatar className="w-10 h-10" /> 
                         <div className="text-right">
                            <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
                            <span className="text-gray-500 text-sm block">{user.username}</span>
