@@ -325,8 +325,84 @@ function App() {
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
                     {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
-                    {page === 'help' && <PlaceholderScreen title="Help" message="Welcome to the Help Center. Instructions on using the app will appear here." />}
-                </main>
+                    {page === 'help' && (
+                        <div className="help-content" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', lineHeight: 1.6, color: '#333', fontSize: '16px' }}>
+                            <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '20px', color: '#2c3e50' }}>📘 Welcome to Ledgerify</h1>
+
+                            <p>
+                                You’re logged in as <strong>
+                                    {user?.firstName && user?.lastName
+                                        ? `${user.fullName}`
+                                        : user?.username || 'User'}
+                                </strong>. This guide walks you through Ledgerify’s core features—tailored to your role as an <strong>Administrator</strong>, <strong>Manager</strong>, or <strong>Accountant</strong>.
+                            </p>
+
+                            <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '32px', marginBottom: '16px', color: '#2c3e50' }}>👥 Your Role & What You Can Do</h2>
+                            <p>
+                                What you see and can do in Ledgerify depends on your assigned role:
+                                <br />
+                                – <strong>Administrators</strong> can manage the Chart of Accounts, create or suspend users, view audit logs, and run system reports.
+                                <br />
+                                – <strong>Managers</strong> and <strong>Accountants</strong> can view accounts, explore ledgers, and use tools like journalizing—but cannot add, edit, or deactivate accounts.
+                            </p>
+
+                            <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>📊 Working with the Chart of Accounts</h2>
+                            <p>
+                                The Chart of Accounts is your central list of all financial accounts. Each entry includes:
+                                <br />
+                                – Account name and number (numbers only, with valid prefixes like 1000 for assets)
+                                <br />
+                                – Category (e.g., Asset, Liability) and subcategory (e.g., Current Assets)
+                                <br />
+                                – Normal side (Debit or Credit), statement type (Balance Sheet, Income Statement, etc.)
+                                <br />
+                                – Current and initial balances, plus optional comments
+                            </p>
+                            <p>
+                                All monetary values show two decimal places and use commas for thousands (e.g., $12,500.00). Note: accounts with a balance above zero cannot be deactivated—this protects your financial data integrity.
+                            </p>
+
+                            <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🔍 Finding an Account</h2>
+                            <p>
+                                Use the search bar to look up accounts by name or number. You can also filter by category, subcategory, or statement type. Click any account to open its full ledger and see all related transactions.
+                            </p>
+
+                            <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🗓️ Picking Dates</h2>
+                            <p>
+                                Need to enter a date? Click any date field to open the calendar—it appears in the top-left corner of your screen. Just click your date, and it’ll fill in automatically.
+                            </p>
+
+                            {user?.role === 'Administrator' && (
+                                <>
+                                    <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🛠️ Admin-Only Tools</h2>
+                                    <p>
+                                        As an Administrator, you can:
+                                        <br />
+                                        – Approve or reject new user registration requests
+                                        <br />
+                                        – Suspend users for a specific date range (like during extended leave)
+                                        <br />
+                                        – View user reports showing status, last login, and password expiry
+                                        <br />
+                                        – Send messages directly to any user from within the app
+                                        <br />
+                                        – Review the full audit log, which tracks every change—who made it, when, and what changed
+                                    </p>
+                                </>
+                            )}
+
+                            <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>💡 Quick Tips</h2>
+                            <p>
+                                – Hover over any button to see a tooltip explaining what it does
+                                <br />
+                                – Watch for loading spinners—they mean your action is being processed
+                                <br />
+                                – The Ledgerify logo appears on every page, and key actions (like journalizing) are always in the top menu
+                                <br />
+                                – Click the Help button anytime to come back here
+                            </p>
+                        </div>
+                    )}                </main>
             </div>
         </div>
     );
