@@ -289,6 +289,7 @@ function App() {
                         <UserAvatar className="w-10 h-10" /> 
                         <div className="text-right">
                            <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
+                            <span className="text-gray-600 font-semibold">{user.username}</span>
                            <span className="text-gray-400 text-sm block">{user.role}</span>
                         </div>
                         <button 
