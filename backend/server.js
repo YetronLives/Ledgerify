@@ -9,6 +9,8 @@ app.use(express.json());
 const cors = require('cors');
 app.use(cors());
 
+const argon2 = require('argon2');
+
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -70,9 +72,6 @@ app.post('/CreateUser', async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ message: 'User created successfully', user: data[0] });
 });
-
-
-const argon2 = require('argon2');
 
 app.post('/Login', async (req, res) => {
   const { username, password } = req.body; // "username" holds the email exactly as typed
@@ -472,6 +471,84 @@ app.post('/send-email', async (req, res) => {
       error: 'Failed to send email: ' + err.message 
     });
   }
+});
+
+// Get Chart of Accounts by User ID
+app.get('/chart-of-accounts/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('account_number', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({ 
+      message: 'Accounts fetched successfully', 
+      accounts: data || [],
+      count: data ? data.length : 0
+    });
+
+  } catch (err) {
+    console.error('Error fetching accounts:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
+  }
+});
+
+// Create Chart of Account
+app.post('/CreateChartOfAccount', async (req, res) => {
+  const {user_id, account_name, account_number, account_description, normal_side, category, subcategory, initial_balance, order_number, statement, comment, is_active} = req.body;
+  
+  if (!account_name || !account_number || !category || !normal_side) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  // Calculate debit, credit, and balance based on normal_side
+  let debit = 0;
+  let credit = 0;
+  let balance = 0;
+
+  if (normal_side === "debit") {
+    debit = initial_balance || 0;
+    credit = 0;
+    balance = initial_balance || 0;
+  } else if (normal_side === "credit") {
+    credit = initial_balance || 0;
+    debit = 0;
+    balance = -(initial_balance || 0);
+  } else {
+    return res.status(400).json({ error: 'Invalid normal_side value. Must be "debit" or "credit".' });
+  }
+
+  const { data, error } = await supabase.from('chart_of_accounts').insert([{
+    user_id,
+    account_name,
+    account_number,
+    account_description,
+    normal_side,
+    category,
+    subcategory,
+    initial_balance: initial_balance || 0,
+    debit,
+    credit,
+    balance,
+    order_number,
+    statement,
+    comment,
+    is_active: is_active !== undefined ? is_active : true,
+  }]).select();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal.jsx';
 import { IconPlusCircle } from '../ui/Icons.jsx';
 import AddAccountForm from './AddAccountForm.jsx';
@@ -6,15 +6,63 @@ import EditAccountForm from './EditAccountForm.jsx';
 import AccountDetails from './AccountDetails.jsx';
 import DeleteConfirmation from './DeleteConfirmation.jsx';
 
- function ChartOfAccounts({ initialAccounts, currentUser, setPage, setSelectedLedgerAccount }) {
-            const [accounts, setAccounts] = useState(initialAccounts);
+ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
+            const [accounts, setAccounts] = useState([]);
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [searchTerm, setSearchTerm] = useState("");
             const [selectedAccount, setSelectedAccount] = useState(null);
             const [modalView, setModalView] = useState('view');
             const [formError, setFormError] = useState(''); // State for form errors
+            const [isLoading, setIsLoading] = useState(true);
             
             const isAdmin = currentUser.role === 'Administrator';
+
+            // Fetch accounts from database on component mount
+            useEffect(() => {
+                const fetchAccounts = async () => {
+                    if (!currentUser?.id) {
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`http://localhost:5000/chart-of-accounts/${currentUser.id}`);
+                        const data = await response.json();
+                        
+                        if (response.ok && data.accounts) {
+                            // Map database fields to frontend format
+                            const mappedAccounts = data.accounts.map(acc => ({
+                                number: acc.account_number,
+                                name: acc.account_name,
+                                description: acc.account_description,
+                                normalSide: acc.normal_side.charAt(0).toUpperCase() + acc.normal_side.slice(1), // Capitalize first letter
+                                category: acc.category,
+                                subcategory: acc.subcategory,
+                                initialBalance: acc.initial_balance,
+                                balance: acc.balance,
+                                debit: acc.debit,
+                                credit: acc.credit,
+                                order: acc.order_number,
+                                statement: acc.statement,
+                                comment: acc.comment,
+                                addedDate: acc.created_at,
+                                userId: acc.user_id
+                            }));
+                            setAccounts(mappedAccounts);
+                        } else {
+                            console.error('Failed to fetch accounts:', data.error);
+                            setAccounts([]);
+                        }
+                    } catch (error) {
+                        console.error('Error fetching accounts:', error);
+                        setAccounts([]);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+
+                fetchAccounts();
+            }, [currentUser.id]);
 
             // --- State for filters ---
             const [categoryFilter, setCategoryFilter] = useState('all');
@@ -34,7 +82,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                 'Expenses': { min: 5000, max: 5999 }
             };
 
-            const handleAddAccount = (newAccountData) => {
+            const handleAddAccount = async (newAccountData) => {
                 setFormError(''); 
 
                 if (!newAccountData.name || !newAccountData.number) {
@@ -64,17 +112,37 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                     return;
                 }
 
-                const numericInitialBalance = parseFloat(newAccountData.initialBalance) || 0;
-                const newAccount = {
-                    ...newAccountData,
-                    initialBalance: numericInitialBalance,
-                    balance: numericInitialBalance,
-                    debit: 0, credit: 0,
-                    addedDate: new Date().toISOString(),
-                    userId: currentUser.username,
-                };
-                setAccounts(prev => [...prev, newAccount].sort((a, b) => a.number - b.number));
+                // Close modal and refresh accounts from database
                 setIsAddModalOpen(false);
+                
+                // Refetch accounts from database to get the newly added one
+                try {
+                    const response = await fetch(`http://localhost:5000/chart-of-accounts/${currentUser.id}`);
+                    const data = await response.json();
+                    
+                    if (response.ok && data.accounts) {
+                        const mappedAccounts = data.accounts.map(acc => ({
+                            number: acc.account_number,
+                            name: acc.account_name,
+                            description: acc.account_description,
+                            normalSide: acc.normal_side.charAt(0).toUpperCase() + acc.normal_side.slice(1),
+                            category: acc.category,
+                            subcategory: acc.subcategory,
+                            initialBalance: acc.initial_balance,
+                            balance: acc.balance,
+                            debit: acc.debit,
+                            credit: acc.credit,
+                            order: acc.order_number,
+                            statement: acc.statement,
+                            comment: acc.comment,
+                            addedDate: acc.created_at,
+                            userId: acc.user_id
+                        }));
+                        setAccounts(mappedAccounts);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing accounts:', error);
+                }
             };
 
              const handleUpdateAccount = (updatedData) => {
@@ -158,7 +226,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
             return (
                 <div className="bg-white p-6 rounded-lg shadow-md">
                     <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
-                        <AddAccountForm onAdd={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} />
+                        <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
                     </Modal>
                     <Modal isOpen={!!selectedAccount} onClose={closeAccountModal} title={modalView === 'edit' ? `Edit Account: ${selectedAccount?.name}` : modalView === 'delete' ? 'Confirm Deletion' : `Account Details`}>
                         {selectedAccount && modalView === 'view' && <AccountDetails account={selectedAccount} onEdit={() => setModalView('edit')} onAttemptDelete={handleAttemptDelete} onViewLedger={handleViewLedger} error={formError} isAdmin={isAdmin} />}
@@ -200,24 +268,33 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="p-3">Number</th><th className="p-3">Name</th><th className="p-3">Description</th><th className="p-3">Normal Side</th><th className="p-3">Category</th><th className="p-3">Subcategory</th>
-                                    <th className="p-3 text-right">Balance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredAccounts.map((acc) => (
-                                    <tr key={acc.number} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => openAccountModal(acc)}>
-                                        <td className="p-3 font-mono">{acc.number}</td><td className="p-3 font-semibold">{acc.name}</td><td className="p-3 text-gray-500 max-w-xs truncate">{acc.description}</td>
-                                        <td className="p-3">{acc.normalSide}</td><td className="p-3">{acc.category}</td><td className="p-3">{acc.subcategory}</td>
-                                        <td className="p-3 text-right font-mono font-bold">${acc.balance.toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {filteredAccounts.length === 0 && <div className="text-center py-8 text-gray-500">No accounts found.</div>}
+                        {isLoading ? (
+                            <div className="text-center py-12">
+                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                                <p className="mt-2 text-gray-500">Loading accounts...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="p-3">Number</th><th className="p-3">Name</th><th className="p-3">Description</th><th className="p-3">Normal Side</th><th className="p-3">Category</th><th className="p-3">Subcategory</th>
+                                            <th className="p-3 text-right">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredAccounts.map((acc) => (
+                                            <tr key={acc.number} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => openAccountModal(acc)}>
+                                                <td className="p-3 font-mono">{acc.number}</td><td className="p-3 font-semibold">{acc.name}</td><td className="p-3 text-gray-500 max-w-xs truncate">{acc.description}</td>
+                                                <td className="p-3">{acc.normalSide}</td><td className="p-3">{acc.category}</td><td className="p-3">{acc.subcategory}</td>
+                                                <td className="p-3 text-right font-mono font-bold">${acc.balance.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {filteredAccounts.length === 0 && <div className="text-center py-8 text-gray-500">No accounts found.</div>}
+                            </>
+                        )}
                     </div>
                 </div>
             );

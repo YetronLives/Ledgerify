@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { IconLoading } from '../ui/Icons';
-import { useRef } from 'react';
 
 
 function CreateUserForm({ close, addUserToApp }) {
@@ -32,10 +31,10 @@ function CreateUserForm({ close, addUserToApp }) {
                     email: newUser.email,
                     address: newUser.address,
                     date_of_birth: newUser.dob,
-                    question1: '1. What was your first pet\'s name?',
-                    q1_answer: 'DefaultPet',
-                    question2: '2. In what city were you born?',
-                    q2_answer: 'DefaultCity',
+                    question1: newUser.question1 || '1. What was your first pet\'s name?',
+                    q1_answer: newUser.q1_answer || 'DefaultPet',
+                    question2: newUser.question2 || '2. In what city were you born?',
+                    q2_answer: newUser.q2_answer || 'DefaultCity',
                     role: newUser.role
                 })
             });

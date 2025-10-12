@@ -24,19 +24,6 @@ const mockUsers = {
     'alix': { password: 'ledger1!', email: 'alix@example.com', fullName: 'Alix', role: 'Accountant', status: 'Active', passwordExpires: '2026-08-01', securityQuestion: 'In what city were you born?', securityQuestion2: 'What was the model of your first car?', securityAnswer: 'Atlanta', securityAnswer2: 'G-Wagon'},
 };
 
-const initialAccounts = [
-    // Assets (1000-1999)
-    {number: '1010', name: 'Cash', description: 'Cash in checking and savings accounts.', normalSide: 'Debit', category: 'Assets', subcategory: 'Current Assets', initialBalance: 25000.00, debit: 5000, credit: 2000, balance: 28000.00, addedDate: '2025-01-15T10:00:00Z', userId: 'meriam',  order: '01', statement: 'BS', comment: 'Main operating account.'},
-    // Liabilities (2000-2999)
-    {number: '2010', name: 'Accounts Payable', description: 'Money the company owes to suppliers.', normalSide: 'Credit', category: 'Liabilities', subcategory: 'Current Liabilities', initialBalance: 8000.00, debit: 3000, credit: 10000, balance: 15000.00, addedDate: '2025-02-01T14:00:00Z', userId: 'meriam', order: '10', statement: 'BS', comment: 'Vendor invoices.'},
-    // Equity (3000-3999)
-    {number: '3010', name: 'Common Stock', description: 'Capital invested by shareholders.', normalSide: 'Credit', category: 'Equity', subcategory: 'Contributed Capital', initialBalance: 50000.00, debit: 0, credit: 0, balance: 50000.00, addedDate: '2025-01-10T09:00:00Z', userId: 'meriam', order: '20', statement: 'BS', comment: ''},
-     // Revenue (4000-4999)
-    {number: '4010', name: 'Service Revenue', description: 'Revenue from primary business operations.', normalSide: 'Credit', category: 'Revenue', subcategory: 'Operating Revenue', initialBalance: 0, debit: 0, credit: 85000, balance: 85000.00, addedDate: '2025-03-01T12:00:00Z', userId: 'meriam', order: '30', statement: 'IS', comment: 'YTD through Q3'},
-    // Expenses (5000-5999)
-    {number: '5010', name: 'Salaries Expense', description: 'Wages and salaries paid to employees.', normalSide: 'Debit', category: 'Expenses', subcategory: 'Operating Expenses', initialBalance: 0, debit: 45000, credit: 0, balance: 45000.00, addedDate: '2025-03-01T12:05:00Z', userId: 'meriam', order: '40', statement: 'IS', comment: ''},
-];
-
 // --- Function to generate a temporary, secure password ---
 const generateTemporaryPassword = (length = 10) => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
@@ -104,6 +91,7 @@ function App() {
         // For backend login, we receive the complete user object
         // Map the backend data to frontend format
         const mappedUserData = {
+            id: userData.id, // Store the user ID for API calls
             email: userData.email,
             role: userData.role === 'Admin' ? 'Administrator' : userData.role,
             fullName: `${userData.first_name} ${userData.last_name}`,
@@ -328,7 +316,7 @@ function App() {
                     )}
                     {page === 'userhome' && <UserHome user={user} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
-                    {page === 'accounts' && <ChartOfAccounts initialAccounts={initialAccounts} currentUser={user} setPage={setPage} setSelectedLedgerAccount={setSelectedLedgerAccount} />}
+                    {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccount={setSelectedLedgerAccount} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => setPage('accounts')} />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
