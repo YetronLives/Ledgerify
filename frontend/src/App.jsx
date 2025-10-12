@@ -7,8 +7,7 @@ import UserManagement from './components/userManagement/UserManagement';
 import PlaceholderScreen from './components/ui/PlaceholderScreen';
 import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger';
-import { IconLogo } from './components/ui/Icons';
-import { IconUser } from './components/ui/Icons';
+import { IconLogo, IconUser } from './components/ui/Icons';
 import UserHome from './components/UserHome';
 import Profile from './components/Profile'
 
@@ -233,6 +232,7 @@ function App() {
         setUser(null);
         setPage('dashboard');
         setNotification(null);
+        setIsMobileMenuOpen(false);
     };
 
     // Notification clear effect removed to keep banner visible until dismissed/logout
@@ -258,55 +258,80 @@ function App() {
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
 
     return (
-        <div className="flex h-screen bg-gray-100 font-sans">
-            <aside className={`bg-emerald-500 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-200 ease-in-out z-20`}>
-                <div className="flex items-center space-x-2 px-4">
-                    <IconLogo className="w-8 h-8" />
-                    <span className="text-xl font-bold">Ledgerify</span>
+        <div className="flex flex-col h-screen bg-gray-100 font-sans">
+            // Navigation Header Change
+            <header className="bg-emerald-500 text-white shadow-md z-30">
+                <div className="container mx-auto px-4">
+                    <div className="flex justify-between items-center py-3">
+                        <div className="flex items-center space-x-2">
+                            <IconLogo className="w-8 h-8" />
+                            <span className="text-xl font-bold">Ledgerify</span>
+                        </div>
+
+                        {/* Desktop Navigation */}
+                        <nav className="hidden md:flex items-center space-x-1">
+                            {allowedNavItems.filter(item => item.id !== 'profile').map(item => (
+                                <button key={item.id} onClick={() => setPage(item.id)}
+                                    className={`px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
+
+                        {/* User Info & Actions - Desktop */}
+                        <div className="hidden md:flex items-center space-x-4">
+                             <button
+                                onClick={() => setPage('profile')}
+                                className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
+                                title="Profile"
+                            >
+                                <div className="text-right">
+                                    <span className="font-semibold text-sm">{user.firstName || user.fullName}</span>
+                                    <span className="text-xs block opacity-80">{user.role}</span>
+                                </div>
+                                {user.profileImage ? (
+                                    <img src={user.profileImage} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-emerald-300"/>
+                                ) : (
+                                    <IconUser className="w-7 h-7" />
+                                )}
+                            </button>
+                            <button onClick={logout} className="px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 border border-emerald-400 hover:border-emerald-300">
+                                Logout
+                            </button>
+                        </div>
+                        
+                        {/* Mobile Menu Button */}
+                        <div className="md:hidden">
+                            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white focus:outline-none p-2">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <nav>
-                    {allowedNavItems.map(item => (
-                        <button key={item.id} onClick={() => { setPage(item.id); setIsMobileMenuOpen(false); }}
-                            className={`w-full text-left flex items-center space-x-2 py-2.5 px-4 rounded transition duration-200 hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
-                            <span>{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
-                <div className="absolute bottom-0 w-full p-4 left-0">
-                    <button onClick={logout} className="w-full text-left flex items-center space-x-2 py-2.5 px-4 rounded transition duration-200 hover:bg-emerald-700">
-                        <span>Logout</span>
-                    </button>
-                </div>
-            </aside>
+
+                {/* Mobile Navigation Menu */}
+                {isMobileMenuOpen && (
+                    <nav className="md:hidden bg-emerald-600 border-t border-emerald-700">
+                        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                             {allowedNavItems.map(item => (
+                                <button key={item.id} onClick={() => { setPage(item.id); setIsMobileMenuOpen(false); }}
+                                    className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
+                                    {item.label}
+                                </button>
+                            ))}
+                            <div className="border-t border-emerald-500 pt-2 mt-2">
+                                <button onClick={logout} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700">
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+                )}
+            </header>
 
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="flex justify-between items-center p-4 bg-white border-b-2 border-gray-200">
-                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-gray-500 focus:outline-none">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                    </button>
-                    <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace('_', ' ')}</h1>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-center">
-                            <span className="text-gray-600 font-semibold">{user.firstName || user.fullName}</span>
-                            <span className="text-gray-500 text-sm block">{user.username}</span>
-                            <span className="text-gray-400 text-sm block">{user.role}</span>
-                        </div>
-                        <button
-                            onClick={() => setPage('profile')}
-                            className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                            title="Profile"
-                        >
-                            {user.profileImage ? (
-                                <img
-                                    src={user.profileImage}
-                                    alt="Profile"
-                                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-300"
-                                />
-                            ) : (
-                                <IconUser className="w-6 h-6 text-gray-600 m-1" />
-                            )}
-                        </button>
-                    </div>
+                    <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace(/([A-Z])/g, ' $1').trim()}</h1>
                 </header>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
                     {notification && (
@@ -402,7 +427,8 @@ function App() {
                                 – Click the Help button anytime to come back here
                             </p>
                         </div>
-                    )}                </main>
+                    )}
+                </main>
             </div>
         </div>
     );
