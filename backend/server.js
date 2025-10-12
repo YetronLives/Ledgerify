@@ -512,6 +512,29 @@ app.post('/CreateChartOfAccount', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
+  // Check for duplicate account_number or account_name for this user in a single query
+  const { data: existingAccounts, error: checkError } = await supabase
+    .from('chart_of_accounts')
+    .select('account_number, account_name')
+    .eq('user_id', user_id)
+    .or(`account_number.eq.${account_number},account_name.eq.${account_name}`);
+
+  if (checkError) {
+    return res.status(500).json({ error: 'Error checking for duplicates: ' + checkError.message });
+  }
+
+  if (existingAccounts && existingAccounts.length > 0) {
+    const duplicateNumber = existingAccounts.find(acc => acc.account_number === account_number);
+    const duplicateName = existingAccounts.find(acc => acc.account_name === account_name);
+    
+    if (duplicateNumber && duplicateName) {
+      return res.status(409).json({ error: `Account number ${account_number} and account name "${account_name}" already exist. Please use different values.` });
+    } else if (duplicateNumber) {
+      return res.status(409).json({ error: `Account number ${account_number} already exists. Please use a different account number.` });
+    } else if (duplicateName) {
+      return res.status(409).json({ error: `Account name "${account_name}" already exists. Please use a different account name.` });
+    }
+  }
   // Calculate debit, credit, and balance based on normal_side
   let debit = 0;
   let credit = 0;
