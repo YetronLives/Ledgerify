@@ -166,6 +166,15 @@ function App() {
         setUsers(prevUsers => ({ ...prevUsers, [username]: newUserData }));
         console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
+
+    const removeUserFromApp = (username) => {
+        setUsers(prevUsers => {
+            const newUsers = { ...prevUsers };
+            delete newUsers[username];
+            return newUsers;
+        });
+        console.log(`[App] User Removed. Username: ${username}`);
+    };
     
     const addRegistrationRequest = (requestData) => {
         const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -318,7 +327,7 @@ function App() {
                         </div>
                     )}
                     {page === 'userhome' && <UserHome user={user} />}
-                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} />} 
+                    {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
                     {page === 'accounts' && <ChartOfAccounts initialAccounts={initialAccounts} currentUser={user} setPage={setPage} setSelectedLedgerAccount={setSelectedLedgerAccount} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => setPage('accounts')} />}
                     {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}

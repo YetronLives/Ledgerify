@@ -11,18 +11,38 @@ function EmailForm({ user, close }) {
         e.preventDefault();
         setIsLoading(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        console.log(`Sending email to ${user.fullName} (${user.email}) with subject: ${subject}`);
-        console.log(`Body: ${body}`);
+        try {
+            const response = await fetch('http://localhost:5000/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to: user.email,
+                    subject: subject,
+                    body: body,
+                    senderName: 'Ledgerify Support'
+                })
+            });
 
-        setIsLoading(false);
-        setSent(true);
-        
-        setTimeout(() => {
-            close();
-        }, 3000);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to send email');
+            }
+
+            console.log('Email sent successfully:', data);
+            setSent(true);
+            
+            setTimeout(() => {
+                close();
+            }, 3000);
+        } catch (error) {
+            console.error('Error sending email:', error);
+            alert('Failed to send email: ' + error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

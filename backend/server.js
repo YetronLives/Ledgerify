@@ -1,5 +1,6 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -11,6 +12,15 @@ app.use(cors());
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Email transporter configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // You can use 'gmail', 'outlook', or configure custom SMTP
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address
+    pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+  }
+});
 
 app.get('/', (req, res) => {
   res.send('API is running!');
@@ -27,11 +37,12 @@ app.get('/users', async (req, res) => {
 });
 
 app.post('/CreateUser', async (req, res) => {
-  const {first_name,last_name,question1,q1_answer,question2,q2_answer, email, address,date_of_birth} = req.body;
-  password = "TempPass123!"
-  username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
+  const {first_name, last_name, question1, q1_answer, question2, q2_answer, email, address, date_of_birth, role} = req.body;
+  const password = "TempPass123!"
+  let username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
   username = username.toLowerCase()
-  password_expires = new Date();
+  const password_expires = new Date();
+  console.log("Default Date: ", password_expires.toISOString())
   password_expires.setDate(password_expires.getDate() + 3);
   
   if (!first_name || !last_name || !email || !password) {
@@ -49,11 +60,11 @@ app.post('/CreateUser', async (req, res) => {
     q2_answer,
     email,
     address,
-    role : 'user',
+    role: role || 'user',
     password_hash,
     date_of_birth,
     password_expires: password_expires.toISOString(),
-    account_status: false, 
+    account_status: true,
 
   }]).select();
     if (error) return res.status(400).json({ error: error.message });
@@ -76,6 +87,7 @@ app.post('/Login', async (req, res) => {
     .maybeSingle();
 
   if (fetchErr || !user) {
+    console.log('User fetch error or not found:', fetchErr);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
@@ -94,6 +106,7 @@ app.post('/Login', async (req, res) => {
       .from('users')
       .update({ login_attempts: (user.login_attempts || 0) + 1 })
       .eq('id', user.id);
+      console.log('Invalid password attempt for user:', username);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
@@ -128,6 +141,7 @@ app.post('/forgot-password/verify-user', async (req, res) => {
     }
 
     if (!user) {
+      console.log('User not found for username/email:', username, email);
       return res.status(404).json({ error: 'Invalid username or email.' });
     }
 
@@ -316,6 +330,66 @@ app.put('/users/:identifier', async (req, res) => {
   }
 });
 
+// Delete User endpoint
+app.delete('/users/:identifier', async (req, res) => {
+  const { identifier } = req.params; // Can be username or email
+
+  if (!identifier) {
+    return res.status(400).json({ error: 'User identifier is required.' });
+  }
+
+  try {
+    // First, try to find the user by username, then by email
+    let { data: user, error: findError } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('username', identifier.toLowerCase())
+      .maybeSingle();
+
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "not found"
+      return res.status(500).json({ error: 'Database error while finding user.' });
+    }
+
+    // If not found by username, try by email
+    if (!user) {
+      const { data: userByEmail, error: findEmailError } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .eq('email', identifier)
+        .maybeSingle();
+
+      if (findEmailError && findEmailError.code !== 'PGRST116') {
+        return res.status(500).json({ error: 'Database error while finding user.' });
+      }
+
+      user = userByEmail;
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Delete the user
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', user.id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete user: ' + deleteError.message });
+    }
+
+    return res.json({ 
+      message: 'User deleted successfully',
+      username: user.username
+    });
+
+  } catch (err) {
+    console.error('Delete user error:', err);
+    return res.status(500).json({ error: 'Server error occurred while deleting user.' });
+  }
+});
+
 // Endpoint to update existing users with password expiration dates
 app.post('/update-password-expires', async (req, res) => {
   try {
@@ -362,6 +436,41 @@ app.post('/update-password-expires', async (req, res) => {
   } catch (err) {
     console.error('Update password expires error:', err);
     return res.status(500).json({ error: 'Server error occurred while updating password expiration dates.' });
+  }
+});
+
+// Send Email endpoint
+app.post('/send-email', async (req, res) => {
+  const { to, subject, body, senderName } = req.body;
+
+  if (!to || !subject || !body) {
+    return res.status(400).json({ error: 'Recipient email, subject, and body are required.' });
+  }
+
+  try {
+    const mailOptions = {
+      from: `"${senderName || 'Ledgerify'}" <${process.env.EMAIL_USER}>`,
+      to: to,
+      subject: subject,
+      text: body,
+      html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+               <p style="white-space: pre-wrap;">${body.replace(/\n/g, '<br>')}</p>
+             </div>`
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('Email sent successfully:', info.messageId);
+    return res.json({ 
+      message: 'Email sent successfully',
+      messageId: info.messageId 
+    });
+
+  } catch (err) {
+    console.error('Error sending email:', err);
+    return res.status(500).json({ 
+      error: 'Failed to send email: ' + err.message 
+    });
   }
 });
 

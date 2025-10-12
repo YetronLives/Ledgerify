@@ -24,6 +24,8 @@ function EditUserForm({ user, close, updateUser }) {
             email: formData.get('email'),
             role: formData.get('role'),
             account_status: formData.get('status') === 'Active',
+            address: formData.get('address'),
+            date_of_birth: formData.get('dob')
         };
 
         try {
@@ -115,6 +117,24 @@ function EditUserForm({ user, close, updateUser }) {
                             type="email"
                             defaultValue={user.email}
                             required
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-600 mb-2">Address</label>
+                        <input
+                            name="address"
+                            type="text"
+                            defaultValue={user.address}
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-600 mb-2">Date of Birth</label>
+                        <input
+                            name="dob"
+                            type="date"
+                            defaultValue={user.dateOfBirth}
                             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
