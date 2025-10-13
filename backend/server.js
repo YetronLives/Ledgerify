@@ -1,10 +1,5 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const cors = require('cors');
-
 require('dotenv').config();
 
 const app = express();
@@ -12,9 +7,20 @@ app.use(express.json());
 
 app.use(cors());
 
+const argon2 = require('argon2');
+
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Email transporter configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // You can use 'gmail', 'outlook', or configure custom SMTP
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address
+    pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+  }
+});
 
 app.get('/', (req, res) => {
   res.send('API is running!');
@@ -31,11 +37,12 @@ app.get('/users', async (req, res) => {
 });
 
 app.post('/CreateUser', async (req, res) => {
-  const {first_name,last_name,question1,q1_answer,question2,q2_answer, email, address,date_of_birth} = req.body;
-  password = "TempPass123!"
-  username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
+  const {first_name, last_name, question1, q1_answer, question2, q2_answer, email, address, date_of_birth, role} = req.body;
+  const password = "TempPass123!"
+  let username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
   username = username.toLowerCase()
-  password_expires = new Date();
+  const password_expires = new Date();
+  console.log("Default Date: ", password_expires.toISOString())
   password_expires.setDate(password_expires.getDate() + 3);
   
   if (!first_name || !last_name || !email || !password) {
@@ -53,19 +60,16 @@ app.post('/CreateUser', async (req, res) => {
     q2_answer,
     email,
     address,
-    role : 'user',
+    role: role || 'user',
     password_hash,
     date_of_birth,
     password_expires: password_expires.toISOString(),
-    account_status: false, 
+    account_status: true,
 
   }]).select();
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ message: 'User created successfully', user: data[0] });
 });
-
-
-const argon2 = require('argon2');
 
 app.post('/Login', async (req, res) => {
   const { username, password } = req.body; // "username" holds the email exactly as typed
@@ -80,6 +84,7 @@ app.post('/Login', async (req, res) => {
     .maybeSingle();
 
   if (fetchErr || !user) {
+    console.log('User fetch error or not found:', fetchErr);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
@@ -98,6 +103,7 @@ app.post('/Login', async (req, res) => {
       .from('users')
       .update({ login_attempts: (user.login_attempts || 0) + 1 })
       .eq('id', user.id);
+      console.log('Invalid password attempt for user:', username);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
@@ -132,6 +138,7 @@ app.post('/forgot-password/verify-user', async (req, res) => {
     }
 
     if (!user) {
+      console.log('User not found for username/email:', username, email);
       return res.status(404).json({ error: 'Invalid username or email.' });
     }
 
@@ -320,6 +327,66 @@ app.put('/users/:identifier', async (req, res) => {
   }
 });
 
+// Delete User endpoint
+app.delete('/users/:identifier', async (req, res) => {
+  const { identifier } = req.params; // Can be username or email
+
+  if (!identifier) {
+    return res.status(400).json({ error: 'User identifier is required.' });
+  }
+
+  try {
+    // First, try to find the user by username, then by email
+    let { data: user, error: findError } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('username', identifier.toLowerCase())
+      .maybeSingle();
+
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "not found"
+      return res.status(500).json({ error: 'Database error while finding user.' });
+    }
+
+    // If not found by username, try by email
+    if (!user) {
+      const { data: userByEmail, error: findEmailError } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .eq('email', identifier)
+        .maybeSingle();
+
+      if (findEmailError && findEmailError.code !== 'PGRST116') {
+        return res.status(500).json({ error: 'Database error while finding user.' });
+      }
+
+      user = userByEmail;
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Delete the user
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', user.id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete user: ' + deleteError.message });
+    }
+
+    return res.json({ 
+      message: 'User deleted successfully',
+      username: user.username
+    });
+
+  } catch (err) {
+    console.error('Delete user error:', err);
+    return res.status(500).json({ error: 'Server error occurred while deleting user.' });
+  }
+});
+
 // Endpoint to update existing users with password expiration dates
 app.post('/update-password-expires', async (req, res) => {
   try {
@@ -367,6 +434,142 @@ app.post('/update-password-expires', async (req, res) => {
     console.error('Update password expires error:', err);
     return res.status(500).json({ error: 'Server error occurred while updating password expiration dates.' });
   }
+});
+
+// Send Email endpoint
+app.post('/send-email', async (req, res) => {
+  const { to, subject, body, senderName } = req.body;
+
+  if (!to || !subject || !body) {
+    return res.status(400).json({ error: 'Recipient email, subject, and body are required.' });
+  }
+
+  try {
+    const mailOptions = {
+      from: `"${senderName || 'Ledgerify'}" <${process.env.EMAIL_USER}>`,
+      to: to,
+      subject: subject,
+      text: body,
+      html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+               <p style="white-space: pre-wrap;">${body.replace(/\n/g, '<br>')}</p>
+             </div>`
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('Email sent successfully:', info.messageId);
+    return res.json({ 
+      message: 'Email sent successfully',
+      messageId: info.messageId 
+    });
+
+  } catch (err) {
+    console.error('Error sending email:', err);
+    return res.status(500).json({ 
+      error: 'Failed to send email: ' + err.message 
+    });
+  }
+});
+
+// Get Chart of Accounts by User ID
+app.get('/chart-of-accounts/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('account_number', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({ 
+      message: 'Accounts fetched successfully', 
+      accounts: data || [],
+      count: data ? data.length : 0
+    });
+
+  } catch (err) {
+    console.error('Error fetching accounts:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
+  }
+});
+
+// Create Chart of Account
+app.post('/CreateChartOfAccount', async (req, res) => {
+  const {user_id, account_name, account_number, account_description, normal_side, category, subcategory, initial_balance, order_number, statement, comment, is_active} = req.body;
+  
+  if (!account_name || !account_number || !category || !normal_side) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  // Check for duplicate account_number or account_name for this user in a single query
+  const { data: existingAccounts, error: checkError } = await supabase
+    .from('chart_of_accounts')
+    .select('account_number, account_name')
+    .eq('user_id', user_id)
+    .or(`account_number.eq.${account_number},account_name.eq.${account_name}`);
+
+  if (checkError) {
+    return res.status(500).json({ error: 'Error checking for duplicates: ' + checkError.message });
+  }
+
+  if (existingAccounts && existingAccounts.length > 0) {
+    const duplicateNumber = existingAccounts.find(acc => acc.account_number === account_number);
+    const duplicateName = existingAccounts.find(acc => acc.account_name === account_name);
+    
+    if (duplicateNumber && duplicateName) {
+      return res.status(409).json({ error: `Account number ${account_number} and account name "${account_name}" already exist. Please use different values.` });
+    } else if (duplicateNumber) {
+      return res.status(409).json({ error: `Account number ${account_number} already exists. Please use a different account number.` });
+    } else if (duplicateName) {
+      return res.status(409).json({ error: `Account name "${account_name}" already exists. Please use a different account name.` });
+    }
+  }
+  // Calculate debit, credit, and balance based on normal_side
+  let debit = 0;
+  let credit = 0;
+  let balance = 0;
+
+  if (normal_side === "debit") {
+    debit = initial_balance || 0;
+    credit = 0;
+    balance = initial_balance || 0;
+  } else if (normal_side === "credit") {
+    credit = initial_balance || 0;
+    debit = 0;
+    balance = -(initial_balance || 0);
+  } else {
+    return res.status(400).json({ error: 'Invalid normal_side value. Must be "debit" or "credit".' });
+  }
+
+  const { data, error } = await supabase.from('chart_of_accounts').insert([{
+    user_id,
+    account_name,
+    account_number,
+    account_description,
+    normal_side,
+    category,
+    subcategory,
+    initial_balance: initial_balance || 0,
+    debit,
+    credit,
+    balance,
+    order_number,
+    statement,
+    comment,
+    is_active: is_active !== undefined ? is_active : true,
+  }]).select();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
 });
 
 const PORT = process.env.PORT || 5000;

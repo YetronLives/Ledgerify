@@ -127,6 +127,229 @@ function RequestInbox({ requests, handleRequest }) {
     );
 }
 
+// --- Inactive Users Component ---
+function InactiveUsersList() {
+    const [inactiveUsers, setInactiveUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+
+    useEffect(() => {
+        fetchInactiveUsers();
+    }, []);
+
+    const fetchInactiveUsers = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/users');
+            const data = await response.json();
+            
+            // Filter for inactive users only
+            const inactive = data.users.filter(user => user.account_status === false);
+            setInactiveUsers(inactive);
+        } catch (error) {
+            console.error('Error fetching inactive users:', error);
+        } finally {
+            setIsLoadingData(false);
+        }
+    };
+
+    const openDetails = (user) => {
+        setSelectedUser(user);
+        setIsModalOpen(true);
+    };
+
+    const handleApprove = async () => {
+        setIsLoading(true);
+        
+        try {
+            const identifier = selectedUser.username || selectedUser.email;
+            const url = `http://localhost:5000/users/${encodeURIComponent(identifier)}`;
+            
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    account_status: true
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to activate user');
+            }
+
+            alert(`User ${selectedUser.username} has been activated successfully!`);
+            setIsModalOpen(false);
+            setSelectedUser(null);
+            
+            // Refresh the list
+            fetchInactiveUsers();
+        } catch (error) {
+            console.error('Error activating user:', error);
+            alert('Failed to activate user: ' + error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDeny = async () => {
+        if (!window.confirm(`Are you sure you want to permanently delete user ${selectedUser.username}? This action cannot be undone.`)) {
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const identifier = selectedUser.username || selectedUser.email;
+            const url = `http://localhost:5000/users/${encodeURIComponent(identifier)}`;
+            
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Server error. Status: ${response.status}`);
+                }
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete user');
+            }
+
+            alert(`User ${selectedUser.username} has been deleted successfully.`);
+            setIsModalOpen(false);
+            setSelectedUser(null);
+            
+            // Refresh the list
+            fetchInactiveUsers();
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('Failed to delete user: ' + error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isLoadingData) {
+        return (
+            <div className="bg-white p-6 rounded-lg shadow-md text-center mb-6">
+                <IconLoading className="w-8 h-8 mx-auto text-gray-400" />
+                <p className="text-gray-500 mt-2">Loading inactive users...</p>
+            </div>
+        );
+    }
+
+    if (inactiveUsers.length === 0) {
+        return (
+            <div className="bg-white p-6 rounded-lg shadow-md border-2 border-dashed border-gray-300 text-center mb-6">
+                <p className="text-gray-500 font-semibold">No inactive users pending approval.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h3 className="text-xl font-bold text-gray-700 flex items-center space-x-2 mb-4">
+                <IconCheckCircle className="w-6 h-6 text-orange-500" />
+                <span>Inactive Users Pending Approval ({inactiveUsers.length})</span>
+            </h3>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-100">
+                        <tr>
+                            <th className="p-3">Username</th>
+                            <th className="p-3">Full Name</th>
+                            <th className="p-3">Role</th>
+                            <th className="p-3">Email</th>
+                            <th className="p-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {inactiveUsers.map((user) => (
+                            <tr key={user.username} className="border-b hover:bg-orange-50/50 cursor-pointer" onClick={() => openDetails(user)}>
+                                <td className="p-3 font-medium">{user.username}</td>
+                                <td className="p-3">{user.first_name} {user.last_name}</td>
+                                <td className="p-3">{user.role}</td>
+                                <td className="p-3 text-sm text-gray-500">{user.email}</td>
+                                <td className="p-3">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); openDetails(user); }} 
+                                        className="text-blue-600 hover:underline text-sm font-semibold"
+                                    >
+                                        Review
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {selectedUser && (
+                <Modal 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)} 
+                    title="Review Inactive User"
+                >
+                    <div className="space-y-3">
+                        <p><strong>Username:</strong> {selectedUser.username}</p>
+                        <p><strong>Name:</strong> {selectedUser.first_name} {selectedUser.last_name}</p>
+                        <p><strong>Email:</strong> {selectedUser.email}</p>
+                        <p><strong>Role:</strong> <span className="font-semibold text-blue-600">{selectedUser.role}</span></p>
+                        {selectedUser.address && <p><strong>Address:</strong> {selectedUser.address}</p>}
+                        {selectedUser.date_of_birth && <p><strong>Date of Birth:</strong> {selectedUser.date_of_birth}</p>}
+                        {selectedUser.password_expires && (
+                            <p><strong>Password Expires:</strong> {new Date(selectedUser.password_expires).toLocaleDateString()}</p>
+                        )}
+                        <hr className="mt-4 mb-4"/>
+                        <p className="text-sm text-gray-500">
+                            This user account is currently inactive. You can:
+                        </p>
+                        <ul className="text-sm text-gray-500 list-disc list-inside space-y-1 mt-2">
+                            <li><strong>Approve:</strong> Activate this user's account and grant them access to the system.</li>
+                            <li><strong>Deny:</strong> Permanently delete this user account from the database.</li>
+                        </ul>
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button 
+                            onClick={() => setIsModalOpen(false)}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                        >
+                            Close
+                        </button>
+                        <button 
+                            onClick={handleDeny}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        >
+                            {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
+                            <span>Deny</span>
+                        </button>
+                        <button 
+                            onClick={handleApprove}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        >
+                            {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
+                            <span>Approve</span>
+                        </button>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+}
+
 // --- Dashboard Component ---
 function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage }) { // <-- ACCEPT setPage
     if (!user) {
@@ -156,7 +379,10 @@ function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage })
                 />
             )}
 
-            {/* 2. Content Block: Admin Stats or Role-Specific Overview */}
+            {/* 2. Inactive Users List (Visible to Admin only) */}
+            {isAdmin && <InactiveUsersList />}
+
+            {/* 3. Content Block: Admin Stats or Role-Specific Overview */}
             {isAdmin ? (
                 // ADMIN VIEW
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

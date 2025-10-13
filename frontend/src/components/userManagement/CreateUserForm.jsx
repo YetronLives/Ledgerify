@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { IconLoading } from '../ui/Icons';
-import { useRef } from 'react';
 
 
 function CreateUserForm({ close, addUserToApp }) {
@@ -10,24 +9,71 @@ function CreateUserForm({ close, addUserToApp }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
         
         const formData = new FormData(formRef.current);
         const newUser = Object.fromEntries(formData.entries());
         
-        const finalNewUser = {
-            ...newUser,
-            status: 'Active',
-            passwordExpires: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-            securityQuestion: '1. What was your first pet\'s name?',
-            securityAnswer: 'DefaultPet',
-            securityQuestion2: '2. In what city were you born?',
-            securityAnswer2: 'DefaultCity'
-        };
+        // Split fullName into first_name and last_name
+        const nameParts = newUser.fullName.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || nameParts[0]; // Use first name as last if only one name provided
+        
+        try {
+            // Make API call to backend to create user in Supabase
+            const response = await fetch('http://localhost:5000/CreateUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: newUser.email,
+                    address: newUser.address,
+                    date_of_birth: newUser.dob,
+                    question1: newUser.question1 || '1. What was your first pet\'s name?',
+                    q1_answer: newUser.q1_answer || 'DefaultPet',
+                    question2: newUser.question2 || '2. In what city were you born?',
+                    q2_answer: newUser.q2_answer || 'DefaultCity',
+                    role: newUser.role
+                })
+            });
 
-        addUserToApp(finalNewUser);
-        setIsLoading(false);
-        close();
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create user');
+            }
+
+            console.log('User created successfully in database:', data);
+
+            // Also update the local state
+            const finalNewUser = {
+                username: newUser.username,
+                fullName: newUser.fullName,
+                firstName: firstName,
+                lastName: lastName,
+                email: newUser.email,
+                address: newUser.address,
+                dateOfBirth: newUser.dob,
+                role: newUser.role,
+                status: 'Active',
+                passwordExpires: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                securityQuestion: '1. What was your first pet\'s name?',
+                securityAnswer: 'DefaultPet',
+                securityQuestion2: '2. In what city were you born?',
+                securityAnswer2: 'DefaultCity'
+            };
+
+            addUserToApp(finalNewUser);
+            alert('User created successfully!');
+            close();
+        } catch (error) {
+            console.error('Error creating user:', error);
+            alert('Failed to create user: ' + error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
