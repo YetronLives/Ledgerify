@@ -80,13 +80,13 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
                         <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="********"/>
                     </div>
                     {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-                    <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                    <button type="submit" disabled={isLoading} title="Log in to your account" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                         {isLoading && <IconLoading className="w-5 h-5" />}
                         <span>Login</span>
                     </button>
                     <div className="flex justify-between items-center mt-4 text-sm">
-                        <button type="button" onClick={() => setLoginView('forgot')} className="text-blue-600 hover:underline">Forgot Password?</button>
-                        <button type="button" onClick={() => setLoginView('register')} className="text-teal-600 hover:underline">Create New User</button>
+                        <button type="button" onClick={() => setLoginView('forgot')} title="Reset your password" className="text-blue-600 hover:underline">Forgot Password?</button>
+                        <button type="button" onClick={() => setLoginView('register')} title="Request a new user account" className="text-teal-600 hover:underline">Create New User</button>
                     </div>
                 </form>
             </div>

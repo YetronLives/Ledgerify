@@ -29,7 +29,7 @@ function EditAccountForm({ account, onUpdate, onCancel, error }) {
             </div>
             <div><label className="block text-gray-600 mb-1 text-sm">Comment</label><input name="comment" defaultValue={account.comment} className="w-full px-3 py-2 border rounded-lg"/></div>
              {error && <div className="text-red-600 text-sm text-center mt-2">{error}</div>}
-             <div className="flex justify-end space-x-2 pt-4"><button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button></div>
+             <div className="flex justify-end space-x-2 pt-4"><button type="button" onClick={onCancel} title="Discard changes and return to details view" className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button><button type="submit" title="Save changes to this account" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button></div>
          </form>
      );
 }

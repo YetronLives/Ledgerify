@@ -51,7 +51,7 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                         <IconCheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold text-center text-gray-700 mb-4">Request Submitted!</h2>
                         <p className="text-gray-600 mb-6">An administrator will review your request and you will receive an email upon approval.</p>
-                        <button type="button" onClick={() => setLoginView('login')} className="w-full mt-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Back to Login</button>
+                        <button type="button" onClick={() => setLoginView('login')} title="Return to the login screen" className="w-full mt-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Back to Login</button>
                     </div>
                 ) : (
                     <>
@@ -110,11 +110,11 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
                             </div>
                                 
 
-                            <button type="submit" disabled={isLoading} className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                            <button type="submit" disabled={isLoading} title="Submit your registration request for admin review" className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                                 {isLoading && <IconLoading className="w-5 h-5" />}
                                 <span>Submit Request</span>
                             </button>
-                            <button type="button" onClick={() => setLoginView('login')} className="w-full mt-2 text-center text-gray-500 hover:underline">Back to Login</button>
+                            <button type="button" onClick={() => setLoginView('login')} title="Cancel and return to the login screen" className="w-full mt-2 text-center text-gray-500 hover:underline">Back to Login</button>
                         </form>
                     </>
                 )}

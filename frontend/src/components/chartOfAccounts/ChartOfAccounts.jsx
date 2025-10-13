@@ -238,7 +238,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                         <h2 className="text-2xl font-bold mb-4 md:mb-0 text-gray-800">Chart of Accounts</h2>
                         <div className="flex items-center space-x-2">
                              <input type="text" placeholder="Search by name or number..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="px-4 py-2 border rounded-lg"/>
-                            {isAdmin && <button onClick={() => setIsAddModalOpen(true)} className="bg-teal-600 text-white py-2 px-4 rounded-lg hover-bg-teal-700 flex items-center space-x-2"><IconPlusCircle /><span>Add New Account</span></button>}
+                            {isAdmin && <button onClick={() => setIsAddModalOpen(true)} title="Add a new account to the chart" className="bg-teal-600 text-white py-2 px-4 rounded-lg hover-bg-teal-700 flex items-center space-x-2"><IconPlusCircle /><span>Add New Account</span></button>}
                         </div>
                     </div>
                     
@@ -262,7 +262,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                                 <option key={range.value} value={range.value}>{range.label}</option>
                             ))}
                         </select>
-                        <button onClick={resetFilters} className="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-semibold">
+                        <button onClick={resetFilters} title="Clear all search and filter criteria" className="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-semibold">
                             Reset Filters
                         </button>
                     </div>

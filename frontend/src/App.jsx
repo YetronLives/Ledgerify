@@ -9,7 +9,7 @@ import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger';
 import { IconLogo, IconUser } from './components/ui/Icons';
 import UserHome from './components/UserHome';
-import Profile from './components/Profile'
+import Profile from './components/Profile';
 
 // eslint-disable-next-line
 import Modal from './components/ui/Modal';
@@ -269,6 +269,7 @@ function App() {
                         <nav className="hidden md:flex items-center space-x-1">
                             {allowedNavItems.filter(item => item.id !== 'profile').map(item => (
                                 <button key={item.id} onClick={() => setPage(item.id)}
+                                    title={`Go to ${item.label}`}
                                     className={`px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
                                     {item.label}
                                 </button>
@@ -280,7 +281,7 @@ function App() {
                              <button
                                 onClick={() => setPage('profile')}
                                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
-                                title="Profile"
+                                title="View your profile"
                             >
                                 <div className="text-right">
                                     <span className="font-semibold text-sm">{user.firstName || user.fullName}</span>
@@ -292,14 +293,14 @@ function App() {
                                     <IconUser className="w-7 h-7" />
                                 )}
                             </button>
-                            <button onClick={logout} className="px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 border border-emerald-400 hover:border-emerald-300">
+                            <button onClick={logout} title="Log out of your account" className="px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 border border-emerald-400 hover:border-emerald-300">
                                 Logout
                             </button>
                         </div>
                         
                         {/* Mobile Menu Button */}
                         <div className="md:hidden">
-                            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white focus:outline-none p-2">
+                            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} title={isMobileMenuOpen ? "Close menu" : "Open menu"} className="text-white focus:outline-none p-2">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                             </button>
                         </div>
@@ -312,12 +313,13 @@ function App() {
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                              {allowedNavItems.map(item => (
                                 <button key={item.id} onClick={() => { setPage(item.id); setIsMobileMenuOpen(false); }}
+                                    title={`Go to ${item.label}`}
                                     className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
                                     {item.label}
                                 </button>
                             ))}
                             <div className="border-t border-emerald-500 pt-2 mt-2">
-                                <button onClick={logout} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700">
+                                <button onClick={logout} title="Log out of your account" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700">
                                     Logout
                                 </button>
                             </div>
@@ -334,7 +336,7 @@ function App() {
                     {notification && (
                         <div className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'}`}>
                             <span>{notification.message}</span>
-                            <button onClick={() => setNotification(null)} className="text-white hover:text-gray-200 font-bold ml-4">
+                            <button onClick={() => setNotification(null)} title="Dismiss notification" className="text-white hover:text-gray-200 font-bold ml-4">
                                 &times;
                             </button>
                         </div>
