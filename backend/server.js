@@ -75,19 +75,26 @@ app.post('/CreateUser', async (req, res) => {
 });
 
 app.post('/Login', async (req, res) => {
-  const { username, password } = req.body; // "username" holds the email exactly as typed
+  const { username, password } = req.body; // "username" can be either username or email
   if (!username || !password) {
     return res.status(400).json({ error: 'Username/email and password are required.' });
   }
 
-  const { data: user, error: fetchErr } = await supabase
+  // Try to find user by either username or email
+  const { data: users, error: fetchErr } = await supabase
     .from('users')
     .select('id, email, first_name, last_name, role, password_hash, account_status, login_attempts, date_of_birth, address, username, q1_answer, q2_answer, password_expires')
-    .eq('email', username)              // ← direct match, no normalization
-    .maybeSingle();
+    .or(`username.eq.${username.toLowerCase()},email.eq.${username.toLowerCase()}`);
 
-  if (fetchErr || !user) {
-    console.log('User fetch error or not found:', fetchErr);
+  if (fetchErr) {
+    console.log('User fetch error:', fetchErr);
+    return res.status(401).json({ error: 'Invalid username or password.' });
+  }
+
+  const user = users && users.length > 0 ? users[0] : null;
+
+  if (!user) {
+    console.log('User not found for username/email:', username);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 

@@ -46,7 +46,8 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                                 statement: acc.statement,
                                 comment: acc.comment,
                                 addedDate: acc.created_at,
-                                userId: acc.user_id
+                                userId: acc.user_id,
+                                isActive: acc.is_active
                             }));
                             setAccounts(mappedAccounts);
                         } else {
@@ -136,7 +137,8 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                             statement: acc.statement,
                             comment: acc.comment,
                             addedDate: acc.created_at,
-                            userId: acc.user_id
+                            userId: acc.user_id,
+                            isActive: acc.is_active
                         }));
                         setAccounts(mappedAccounts);
                     }
@@ -180,6 +182,43 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
             const handleDeleteAccount = (accountNumber) => {
                 setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
                 closeAccountModal();
+            };
+
+            const handleToggleActiveStatus = async (account, e) => {
+                e.stopPropagation(); // Prevent opening the modal when clicking the button
+                
+                const newActiveStatus = !account.isActive;
+                
+                try {
+                    const response = await fetch(`http://localhost:5000/chart-of-accounts/${account.number}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            user_id: currentUser.id,
+                            is_active: newActiveStatus
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Update local state to reflect the change
+                        setAccounts(prev => prev.map(acc => 
+                            acc.number === account.number 
+                                ? { ...acc, isActive: newActiveStatus } 
+                                : acc
+                        ));
+                        console.log(`Account ${account.number} ${newActiveStatus ? 'activated' : 'deactivated'} successfully`);
+                    } else {
+                        console.error('Failed to update account status:', data.error);
+                        alert(`Failed to update account: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error updating account status:', error);
+                    alert('An error occurred while updating the account status.');
+                }
             };
 
             const openAccountModal = (account) => { setSelectedAccount(account); setModalView('view'); };
@@ -279,7 +318,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                                     <thead className="bg-gray-100">
                                         <tr>
                                             <th className="p-3">Number</th><th className="p-3">Name</th><th className="p-3">Description</th><th className="p-3">Normal Side</th><th className="p-3">Category</th><th className="p-3">Subcategory</th>
-                                            <th className="p-3 text-right">Balance</th>
+                                            <th className="p-3 text-right">Balance</th><th className="p-3 text-right">Active</th><th className="p-3 text-right">Actions</th><th className="p-3 text-right">View</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -288,6 +327,17 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                                                 <td className="p-3 font-mono">{acc.number}</td><td className="p-3 font-semibold">{acc.name}</td><td className="p-3 text-gray-500 max-w-xs truncate">{acc.description}</td>
                                                 <td className="p-3">{acc.normalSide}</td><td className="p-3">{acc.category}</td><td className="p-3">{acc.subcategory}</td>
                                                 <td className="p-3 text-right font-mono font-bold">${acc.balance.toFixed(2)}</td>
+                                                <td className="p-3 text-right font-mono font-bold">{acc.isActive ? 'Yes': 'No'}</td>
+                                                <td className="p-3 text-right">
+                                                    <button 
+                                                        onClick={(e) => handleToggleActiveStatus(acc, e)}
+                                                        className={`hover:underline text-sm ${acc.isActive ? 'text-orange-600' : 'text-green-600'}`}>
+                                                        {acc.isActive ? 'Deactivate' : 'Activate'}
+                                                    </button>
+                                                </td>
+                                                <td className="p-3 text-right"> <button onClick={(e) => { e.stopPropagation(); openAccountModal(acc); }} className="text-blue-600 hover:underline text-sm">View</button></td>
+                                                
+                                                
                                             </tr>
                                         ))}
                                     </tbody>

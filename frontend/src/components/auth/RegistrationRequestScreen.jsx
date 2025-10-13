@@ -26,21 +26,45 @@ const RegistrationRequestScreen = ({ setLoginView, onSubmitRequest }) => { // Ad
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        const formData = new FormData(e.currentTarget);
-
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
         
-        const registrationData = Object.fromEntries(formData.entries());
+        const formData = new FormData(e.currentTarget);
         
-        // Pass the request data up to App.jsx for queuing
-        if (onSubmitRequest) {
-            onSubmitRequest(registrationData);
-        }
+        const user_data = {
+            first_name: formData.get('firstName'),
+            last_name: formData.get('lastName'),
+            email: formData.get('email'),
+            address: formData.get('address'),
+            date_of_birth: formData.get('dateOfBirth'),
+            question1: formData.get('securityQuestion1'),
+            q1_answer: formData.get('securityAnswer1'),
+            question2: formData.get('securityQuestion2'),
+            q2_answer: formData.get('securityAnswer2'),
+            role: formData.get('role')
+        };
 
-        // Simulating completion only after queuing
+        try {
+            const response = await fetch('http://localhost:5000/CreateUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user_data),
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                setSubmitted(true);
+            } else {
+                setError(result.error || 'Failed to create user.');
+                alert(result.error || 'Failed to create user.');
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            setError('Network error. Please try again later.');
+            alert('Network error. Please try again later.');
+        }
+        
         setIsLoading(false);
-        setSubmitted(true);
     };
 
     return (
