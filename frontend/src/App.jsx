@@ -256,7 +256,7 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 font-sans">
-            // Navigation Header Change
+            {/* Navigation Layout Change */}
             <header className="bg-emerald-500 text-white shadow-md z-30">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center py-3">
