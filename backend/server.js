@@ -67,7 +67,7 @@ app.post('/CreateUser', async (req, res) => {
     password_hash,
     date_of_birth,
     password_expires: password_expires.toISOString(),
-    account_status: true,
+    account_status: role === 'admin' ? true : false
 
   }]).select();
     if (error) return res.status(400).json({ error: error.message });
