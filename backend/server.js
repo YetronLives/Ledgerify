@@ -1,6 +1,9 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
+const cors = require('cors');
+
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
