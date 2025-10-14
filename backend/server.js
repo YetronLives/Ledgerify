@@ -574,6 +574,30 @@ app.get('/chart-of-accounts/:userId', async (req, res) => {
     return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
   }
 });
+//No ID required
+app.get('/chart-of-accounts', async (req, res) => {
+
+  try {
+    const { data, error } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .order('account_number', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({ 
+      message: 'Accounts fetched successfully', 
+      accounts: data || [],
+      count: data ? data.length : 0
+    });
+
+  } catch (err) {
+    console.error('Error fetching accounts:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
+  }
+});
 
 // Create Chart of Account
 app.post('/CreateChartOfAccount', async (req, res) => {

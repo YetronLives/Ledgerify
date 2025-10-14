@@ -26,7 +26,7 @@ import DeleteConfirmation from './DeleteConfirmation.jsx';
                     }
 
                     try {
-                        const response = await fetch(`http://localhost:5000/chart-of-accounts/${currentUser.id}`);
+                        const response = await fetch(`http://localhost:5000/chart-of-accounts`);
                         const data = await response.json();
                         
                         if (response.ok && data.accounts) {
