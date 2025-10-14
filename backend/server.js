@@ -2,6 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const cors = require('cors');
+const EventLogger = require('./eventLogger');
 
 const nodemailer = require('nodemailer');
 
@@ -71,6 +72,14 @@ app.post('/CreateUser', async (req, res) => {
 
   }]).select();
     if (error) return res.status(400).json({ error: error.message });
+    
+    console.log('Attempting to log user creation event...');
+    const logResult = await EventLogger.logUserCreation(data[0].id, data[0], data[0].id);
+    console.log('Log result:', logResult);
+    if (!logResult.success) {
+      console.error('Failed to log user creation event:', logResult.error);
+    }
+    
     res.status(201).json({ message: 'User created successfully', user: data[0] });
 });
 
@@ -234,7 +243,15 @@ app.post('/forgot-password/reset', async (req, res) => {
     const password_expires = new Date();
     password_expires.setDate(password_expires.getDate() + 3);
 
-    // Update the password in the database
+    const { data: beforeData, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username.toLowerCase())
+      .single();
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Failed to fetch user data.' });
+    }
     const { data, error } = await supabase
       .from('users')
       .update({ 
@@ -243,7 +260,7 @@ app.post('/forgot-password/reset', async (req, res) => {
         login_attempts: 0  // Reset login attempts on password change
       })
       .eq('username', username.toLowerCase())
-      .select('id, username, email');
+      .select('*');
 
     if (error) {
       return res.status(500).json({ error: 'Failed to update password.' });
@@ -251,6 +268,16 @@ app.post('/forgot-password/reset', async (req, res) => {
 
     if (!data || data.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const logResult = await EventLogger.logUserUpdate(
+      data[0].id, 
+      beforeData, 
+      data[0], 
+      data[0].id
+    );
+    if (!logResult.success) {
+      console.error('Failed to log password reset event:', logResult.error);
     }
 
     return res.json({ 
@@ -314,21 +341,40 @@ app.put('/users/:identifier', async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Update the user
+    const { data: beforeData, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Failed to fetch user data before update.' });
+    }
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
       .update(updateData)
       .eq('id', user.id)
-      .select('id, username, email, first_name, last_name, role, account_status, address, date_of_birth, created_at, password_expires, profile_image_url')
+      .select('*')
       .single();
 
     if (updateError) {
       return res.status(500).json({ error: 'Failed to update user: ' + updateError.message });
     }
 
+    const logResult = await EventLogger.logUserUpdate(
+      updatedUser.id, 
+      beforeData, 
+      updatedUser, 
+      updatedUser.id
+    );
+    if (!logResult.success) {
+      console.error('Failed to log user update event:', logResult.error);
+    }
+    const { password_hash, ...safeUser } = updatedUser;
+
     return res.json({ 
       message: 'User updated successfully',
-      user: updatedUser
+      user: safeUser
     });
 
   } catch (err) {
@@ -376,7 +422,15 @@ app.delete('/users/:identifier', async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Delete the user
+    const { data: beforeData, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Failed to fetch user data before deletion.' });
+    }
     const { error: deleteError } = await supabase
       .from('users')
       .delete()
@@ -384,6 +438,15 @@ app.delete('/users/:identifier', async (req, res) => {
 
     if (deleteError) {
       return res.status(500).json({ error: 'Failed to delete user: ' + deleteError.message });
+    }
+
+    const logResult = await EventLogger.logUserDeletion(
+      user.id, 
+      beforeData, 
+      user.id
+    );
+    if (!logResult.success) {
+      console.error('Failed to log user deletion event:', logResult.error);
     }
 
     return res.json({ 
@@ -579,7 +642,207 @@ app.post('/CreateChartOfAccount', async (req, res) => {
   }]).select();
 
   if (error) return res.status(400).json({ error: error.message });
+  
+  const logResult = await EventLogger.logAccountCreation(data[0].id, data[0], user_id);
+  if (!logResult.success) {
+    console.error('Failed to log account creation event:', logResult.error);
+  }
+  
   res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
+});
+
+// Update Chart of Account
+app.put('/chart-of-accounts/:accountId', async (req, res) => {
+  const { accountId } = req.params;
+  const { 
+    account_name, 
+    account_number, 
+    account_description, 
+    normal_side, 
+    category, 
+    subcategory, 
+    initial_balance, 
+    order_number, 
+    statement, 
+    comment, 
+    is_active 
+  } = req.body;
+
+  if (!accountId) {
+    return res.status(400).json({ error: 'Account ID is required.' });
+  }
+
+  try {
+    const { data: beforeData, error: fetchError } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('id', accountId)
+      .single();
+
+    if (fetchError) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+    const updateData = {};
+    if (account_name !== undefined) updateData.account_name = account_name;
+    if (account_number !== undefined) updateData.account_number = account_number;
+    if (account_description !== undefined) updateData.account_description = account_description;
+    if (normal_side !== undefined) updateData.normal_side = normal_side;
+    if (category !== undefined) updateData.category = category;
+    if (subcategory !== undefined) updateData.subcategory = subcategory;
+    if (initial_balance !== undefined) updateData.initial_balance = initial_balance;
+    if (order_number !== undefined) updateData.order_number = order_number;
+    if (statement !== undefined) updateData.statement = statement;
+    if (comment !== undefined) updateData.comment = comment;
+    if (is_active !== undefined) updateData.is_active = is_active;
+
+    if (normal_side !== undefined || initial_balance !== undefined) {
+      const newNormalSide = normal_side !== undefined ? normal_side : beforeData.normal_side;
+      const newInitialBalance = initial_balance !== undefined ? initial_balance : beforeData.initial_balance;
+
+      if (newNormalSide === "debit") {
+        updateData.debit = newInitialBalance;
+        updateData.credit = 0;
+        updateData.balance = newInitialBalance;
+      } else if (newNormalSide === "credit") {
+        updateData.credit = newInitialBalance;
+        updateData.debit = 0;
+        updateData.balance = -newInitialBalance;
+      }
+    }
+
+    const { data: updatedAccount, error: updateError } = await supabase
+      .from('chart_of_accounts')
+      .update(updateData)
+      .eq('id', accountId)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: 'Failed to update account: ' + updateError.message });
+    }
+
+    const logResult = await EventLogger.logAccountUpdate(
+      accountId, 
+      beforeData, 
+      updatedAccount, 
+      beforeData.user_id
+    );
+    if (!logResult.success) {
+      console.error('Failed to log account update event:', logResult.error);
+    }
+
+    return res.json({ 
+      message: 'Account updated successfully',
+      account: updatedAccount
+    });
+
+  } catch (err) {
+    console.error('Update account error:', err);
+    return res.status(500).json({ error: 'Server error occurred while updating account.' });
+  }
+});
+
+// Delete Chart of Account
+app.delete('/chart-of-accounts/:accountId', async (req, res) => {
+  const { accountId } = req.params;
+
+  if (!accountId) {
+    return res.status(400).json({ error: 'Account ID is required.' });
+  }
+
+  try {
+    const { data: beforeData, error: fetchError } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('id', accountId)
+      .single();
+
+    if (fetchError) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+    const { error: deleteError } = await supabase
+      .from('chart_of_accounts')
+      .delete()
+      .eq('id', accountId);
+
+    if (deleteError) {
+      return res.status(500).json({ error: 'Failed to delete account: ' + deleteError.message });
+    }
+
+    const logResult = await EventLogger.logAccountDeletion(
+      accountId, 
+      beforeData, 
+      beforeData.user_id
+    );
+    if (!logResult.success) {
+      console.error('Failed to log account deletion event:', logResult.error);
+    }
+
+    return res.json({ 
+      message: 'Account deleted successfully',
+      account_name: beforeData.account_name
+    });
+
+  } catch (err) {
+    console.error('Delete account error:', err);
+    return res.status(500).json({ error: 'Server error occurred while deleting account.' });
+  }
+});
+
+// Get Event Logs for a specific user
+app.get('/event-logs/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { limit = 100, offset = 0 } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    const result = await EventLogger.getUserEventLogs(parseInt(userId), parseInt(limit), parseInt(offset));
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({ 
+      message: 'Event logs fetched successfully',
+      logs: result.data,
+      count: result.data.length
+    });
+
+  } catch (err) {
+    console.error('Get event logs error:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching event logs.' });
+  }
+});
+
+// Get Event Logs for a specific table
+app.get('/event-logs/table/:tableName', async (req, res) => {
+  const { tableName } = req.params;
+  const { limit = 100, offset = 0 } = req.query;
+
+  if (!tableName) {
+    return res.status(400).json({ error: 'Table name is required.' });
+  }
+
+  try {
+    const result = await EventLogger.getTableEventLogs(tableName, parseInt(limit), parseInt(offset));
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({ 
+      message: 'Event logs fetched successfully',
+      logs: result.data,
+      count: result.data.length
+    });
+
+  } catch (err) {
+    console.error('Get event logs error:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching event logs.' });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
