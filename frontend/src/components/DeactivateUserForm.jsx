@@ -126,6 +126,7 @@ function DeactivateUserForm({ user, close, updateUser }) {
                 <button
                     onClick={close}
                     disabled={isLoading}
+                    title="Cancel and close this dialog"
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
                 >
                     Cancel
@@ -133,6 +134,7 @@ function DeactivateUserForm({ user, close, updateUser }) {
                 <button
                     onClick={handleConfirm}
                     disabled={isLoading}
+                    title={`Confirm to ${actionText} this user`}
                     className={`px-4 py-2 rounded-lg text-white font-medium transition-colors disabled:opacity-50 flex items-center space-x-2 ${
                         isActive 
                             ? 'bg-red-600 hover:bg-red-700' 

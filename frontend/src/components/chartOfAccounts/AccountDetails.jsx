@@ -27,24 +27,18 @@ function AccountDetails({ account, onEdit, onAttemptDelete, onViewLedger, error,
             {account.comment && <div><div className="font-semibold text-gray-500 mb-1">Comment</div><p className="text-gray-700 bg-gray-50 p-2 rounded-md">{account.comment}</p></div>}
             {error && <div className="text-red-600 text-sm text-center mt-2">{error}</div>}
             <div className="flex justify-end space-x-2 pt-4">
-                <button onClick={() => onViewLedger(account)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">View Ledger</button>
+                <button onClick={() => onViewLedger(account)} title="View all transactions for this account" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">View Ledger</button>
                 {isAdmin && (
                     <>
-                        <div className="relative">
-                            <button
-                                onClick={onAttemptDelete}
-                                disabled={!canDelete}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed peer"
-                            >
-                                Delete
-                            </button>
-                            {!canDelete && (
-                                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-gray-700 text-white text-xs rounded-md opacity-0 peer-hover:opacity-100 transition-opacity pointer-events-none">
-                                    Cannot delete account with a non-zero balance.
-                                </div>
-                            )}
-                        </div>
-                        <button onClick={onEdit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Edit</button>
+                        <button
+                            onClick={onAttemptDelete}
+                            disabled={!canDelete}
+                            title={canDelete ? "Delete this account permanently" : "Cannot delete an account with a non-zero balance."}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Delete
+                        </button>
+                        <button onClick={onEdit} title="Edit the details of this account" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Edit</button>
                     </>
                 )}
             </div>

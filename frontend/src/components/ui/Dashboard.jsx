@@ -75,6 +75,7 @@ function RequestInbox({ requests, handleRequest }) {
                                 <td className="p-3">
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); openDetails(request); }} 
+                                        title={`Review the registration request from ${request.firstName} ${request.lastName}`}
                                         className="text-blue-600 hover:underline text-sm font-semibold"
                                     >
                                         Review
@@ -107,6 +108,7 @@ function RequestInbox({ requests, handleRequest }) {
                         <button 
                             onClick={() => handleAction(selectedRequest, 'deny')}
                             disabled={isLoading}
+                            title="Deny this registration request"
                             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                         >
                             {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
@@ -115,6 +117,7 @@ function RequestInbox({ requests, handleRequest }) {
                         <button 
                             onClick={() => handleAction(selectedRequest, 'approve')}
                             disabled={isLoading}
+                            title="Approve this registration request and create a user account"
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                         >
                             {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
@@ -282,6 +285,7 @@ function InactiveUsersList() {
                                 <td className="p-3">
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); openDetails(user); }} 
+                                        title={`Review the inactive account for ${user.first_name} ${user.last_name}`}
                                         className="text-blue-600 hover:underline text-sm font-semibold"
                                     >
                                         Review
@@ -323,6 +327,7 @@ function InactiveUsersList() {
                         <button 
                             onClick={() => setIsModalOpen(false)}
                             disabled={isLoading}
+                            title="Close this dialog"
                             className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
                         >
                             Close
@@ -330,6 +335,7 @@ function InactiveUsersList() {
                         <button 
                             onClick={handleDeny}
                             disabled={isLoading}
+                            title="Permanently delete this user account"
                             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                         >
                             {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
@@ -338,6 +344,7 @@ function InactiveUsersList() {
                         <button 
                             onClick={handleApprove}
                             disabled={isLoading}
+                            title="Activate this user account"
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                         >
                             {isLoading && <IconLoading className="w-4 h-4 mr-2" />}
@@ -406,14 +413,14 @@ function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage })
                     <div className="mt-4 flex flex-wrap gap-3">
                          {user.role === 'Manager' && (
                              <>
-                                 <button onClick={() => setPage('reports')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150">Review Reports</button>
-                                 <button className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-150">Approve Transactions</button>
+                                 <button onClick={() => setPage('reports')} title="Go to Financial Reports" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150">Review Reports</button>
+                                 <button title="View and approve pending transactions" className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-150">Approve Transactions</button>
                              </>
                          )}
                          {user.role === 'Accountant' && (
                              <>
-                                 <button onClick={() => setPage('journal')} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition duration-150">Start New Journal Entry</button>
-                                 <button onClick={() => setPage('accounts')} className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-150">View Chart of Accounts</button>
+                                 <button onClick={() => setPage('journal')} title="Go to Journal Entries" className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition duration-150">Start New Journal Entry</button>
+                                 <button onClick={() => setPage('accounts')} title="Go to Chart of Accounts" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition duration-150">View Chart of Accounts</button>
                              </>
                          )}
                     </div>

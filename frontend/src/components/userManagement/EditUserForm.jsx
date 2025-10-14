@@ -176,6 +176,7 @@ function EditUserForm({ user, close, updateUser }) {
                         <button
                             type="button"
                             onClick={close}
+                            title="Discard changes and close"
                             className="px-4 py-2 bg-gray-200 rounded-lg"
                         >
                             Cancel
@@ -183,6 +184,7 @@ function EditUserForm({ user, close, updateUser }) {
                         <button
                             type="submit"
                             disabled={isLoading}
+                            title="Save the changes to this user's profile"
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                         >
                             {isLoading && <IconLoading className="w-5 h-5" />}

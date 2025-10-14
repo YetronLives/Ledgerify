@@ -140,6 +140,7 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                     type="button" 
                     onClick={onCancel} 
                     disabled={isLoading}
+                    title="Cancel and close this form"
                     className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
                 >
                     Cancel
@@ -147,6 +148,7 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                 <button 
                     type="submit" 
                     disabled={isLoading}
+                    title="Create the new account"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                     {isLoading && <IconLoading className="w-5 h-5" />}
@@ -158,3 +160,4 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
 }
 
 export default AddAccountForm;
+
