@@ -1,8 +1,11 @@
+// src/components/AddAccountForm.jsx
 import React, { useState, useRef } from 'react';
 import { IconLoading } from '../ui/Icons';
+import DateInput from '../ui/DateInput'; // ✅ Import DateInput
 
 function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
     const [isLoading, setIsLoading] = useState(false);
+    const [creationDate, setCreationDate] = useState(new Date()); // Default to today (Oct 13, 2025 in your calendar)
     const formRef = useRef(null);
 
     const handleSubmit = async (e) => {
@@ -23,14 +26,16 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                     account_name: accountData.name,
                     account_number: accountData.number,
                     account_description: accountData.description,
-                    normal_side: accountData.normalSide.toLowerCase(), // "debit" or "credit"
+                    normal_side: accountData.normalSide.toLowerCase(),
                     category: accountData.category,
                     subcategory: accountData.subcategory,
                     initial_balance: parseFloat(accountData.initialBalance) || 0,
                     order_number: parseInt(accountData.order) || 0,
                     statement: accountData.statement,
                     comment: accountData.comment || '',
-                    is_active: true
+                    is_active: true,
+                    // Optional: send date to backend if your API supports it
+                    // created_at: creationDate.toISOString()
                 })
             });
 
@@ -40,10 +45,8 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                 throw new Error(data.error || 'Failed to create account');
             }
 
-            console.log('Account created successfully in database:', data);
+            console.log('Account created successfully:', data);
             alert('Account created successfully!');
-            
-            // Call the parent's onSubmit to trigger refresh from database
             onSubmit(accountData);
             
         } catch (error) {
@@ -66,6 +69,16 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                     <li><strong>Expenses:</strong> 5000-5999</li>
                 </ul>
             </div>
+
+            {/* Date Input */}
+            <div>
+                <DateInput
+                    label="Creation Date"
+                    value={creationDate}
+                    onChange={setCreationDate}
+                />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-gray-600 mb-1 text-sm">Account Name</label>
@@ -140,7 +153,6 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                     type="button" 
                     onClick={onCancel} 
                     disabled={isLoading}
-                    title="Cancel and close this form"
                     className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
                 >
                     Cancel
@@ -148,7 +160,6 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                 <button 
                     type="submit" 
                     disabled={isLoading}
-                    title="Create the new account"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                     {isLoading && <IconLoading className="w-5 h-5" />}
@@ -160,4 +171,3 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
 }
 
 export default AddAccountForm;
-
