@@ -845,6 +845,33 @@ app.get('/event-logs/table/:tableName', async (req, res) => {
   }
 });
 
+// Get All Event Logs
+app.get('/event-logs/all', async (req, res) => {
+  const { limit = 100, offset = 0 } = req.query;
+
+  try {
+    const result = await EventLogger.getAllEventLogs(parseInt(limit), parseInt(offset));
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({ 
+      message: 'All event logs fetched successfully',
+      logs: result.data,
+      count: result.data.length,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+
+  } catch (err) {
+    console.error('Get all event logs error:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching all event logs.' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

@@ -155,6 +155,25 @@ class EventLogger {
       return { success: false, error: error.message };
     }
   }
+
+  static async getAllEventLogs(limit = 100, offset = 0) {
+    try {
+      const { data, error } = await supabase
+        .from('event_log')
+        .select('*')
+        .order('event_time', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        throw new Error(`Failed to fetch all event logs: ${error.message}`);
+      }
+
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('EventLogger.getAllEventLogs error:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 module.exports = EventLogger;
