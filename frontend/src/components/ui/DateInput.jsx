@@ -1,4 +1,3 @@
-// src/ui/DateInput.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 // --- Icons ---
@@ -192,3 +191,5 @@ export default function DateInput({ label, value, onChange }) {
     </div>
   );
 }
+
+
