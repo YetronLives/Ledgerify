@@ -31,23 +31,41 @@ const IconClear = ({ className }) => (
 // --- Helper: Format date as MM/DD/YYYY ---
 const formatDateDisplay = (date) => {
   if (!date) return '';
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
 };
 
 // --- Calendar Popup ---
 function CalendarPopup({ selectedDate, onSelect, onClose, width = 256 }) {
-  const fixedToday = new Date(); // ✅ Real today's date
-  const [currentMonth, setCurrentMonth] = useState(selectedDate || fixedToday);
+  const fixedToday = new Date();
+  
+  // ✅ Use a ref to track if it's the initial render
+  const initialRender = useRef(true);
+  
+  // ✅ Derive currentMonth from selectedDate
+  const getInitialMonth = () => {
+    if (selectedDate) {
+      return new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    }
+    return new Date(fixedToday.getFullYear(), fixedToday.getMonth(), 1);
+  };
+
+  const [currentMonth, setCurrentMonth] = useState(getInitialMonth);
+
+  // ✅ Update currentMonth when selectedDate changes
+  useEffect(() => {
+    if (!initialRender.current) {
+      setCurrentMonth(getInitialMonth());
+    }
+    initialRender.current = false;
+  }, [selectedDate]);
 
   const goToPrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
-
-  const goToNextMonth = () => {
+   const goToNextMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
@@ -56,10 +74,11 @@ function CalendarPopup({ selectedDate, onSelect, onClose, width = 256 }) {
     onSelect(newDate);
     onClose();
   };
-
   // Generate calendar grid
-  const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-  const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 0);
   const startDay = startOfMonth.getDay(); // 0 = Sunday
   const daysInMonth = endOfMonth.getDate();
 
@@ -74,7 +93,7 @@ function CalendarPopup({ selectedDate, onSelect, onClose, width = 256 }) {
       } else if (day > daysInMonth) {
         cells.push(<td key={`empty-end-${week}-${weekday}`} className="p-1"></td>);
       } else {
-        const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+        const date = new Date(year, month, day);
         const isToday = date.toDateString() === fixedToday.toDateString();
         const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
 

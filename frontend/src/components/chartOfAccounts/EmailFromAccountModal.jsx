@@ -1,46 +1,28 @@
 // src/components/chartOfAccounts/EmailFromAccountModal.jsx
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
-import EmailForm from '../userManagement/EmailForm'; // 👈 Reuse your existing form
+import EmailForm from '../userManagement/EmailForm';
 
-const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
+const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
   const [toRole, setToRole] = useState('manager');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [error, setError] = useState('');
 
-  // Fetch users by role when modal opens or role changes
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchUsersByRole = async () => {
       setLoadingUsers(true);
-      setError('');
       try {
-        // 👇 Adjust this endpoint to match your backend
         const response = await fetch(`http://localhost:5000/users?role=${toRole}`);
         const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || `Failed to load ${toRole}s`);
-        }
-
-        // Ensure users have .email and .fullName
-        const validUsers = (data.users || []).filter(
-          u => u.email && (u.fullName || u.first_name)
-        ).map(u => ({
-          ...u,
-          fullName: u.fullName || `${u.first_name} ${u.last_name}`.trim()
-        }));
-
+        const validUsers = (data.users || []).filter(u => u.email);
         setUsers(validUsers);
         setSelectedUser(validUsers.length > 0 ? validUsers[0] : null);
       } catch (err) {
         console.error('Error fetching users:', err);
-        setError(err.message);
         setUsers([]);
-        setSelectedUser(null);
       } finally {
         setLoadingUsers(false);
       }
@@ -51,19 +33,8 @@ const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleRoleChange = (e) => {
-    setToRole(e.target.value);
-    setSelectedUser(null); // Reset selection when role changes
-  };
-
-  const handleClose = () => {
-    onClose();
-    setSelectedUser(null);
-    setUsers([]);
-  };
-
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Send Email">
+    <Modal isOpen={isOpen} onClose={onClose} title="Send Email to Team">
       {!selectedUser ? (
         <div className="space-y-4">
           <div>
@@ -72,8 +43,8 @@ const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
             </label>
             <select
               value={toRole}
-              onChange={handleRoleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+              onChange={(e) => setToRole(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             >
               <option value="manager">Manager</option>
               <option value="accountant">Accountant</option>
@@ -82,8 +53,6 @@ const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
 
           {loadingUsers ? (
             <p className="text-gray-500">Loading users...</p>
-          ) : error ? (
-            <p className="text-red-500">{error}</p>
           ) : users.length === 0 ? (
             <p className="text-gray-500">No {toRole}s found.</p>
           ) : (
@@ -94,11 +63,11 @@ const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {users.map((user) => (
                   <div
-                    key={user.id || user.email}
+                    key={user.id}
                     onClick={() => setSelectedUser(user)}
                     className="p-3 border rounded cursor-pointer hover:bg-gray-50"
                   >
-                    <div className="font-medium">{user.fullName}</div>
+                    <div className="font-medium">{user.first_name} {user.last_name}</div>
                     <div className="text-sm text-gray-500">{user.email}</div>
                   </div>
                 ))}
@@ -119,9 +88,7 @@ const EmailFromAccountModal = ({ account, isOpen, onClose }) => {
           </div>
           <EmailForm
             user={selectedUser}
-            close={handleClose}
-            // Optional: prefill subject
-            // You can enhance EmailForm to accept initialSubject if needed
+            close={onClose}
           />
         </div>
       )}
