@@ -39,9 +39,8 @@ const formatDateDisplay = (date) => {
 };
 
 // --- Calendar Popup ---
-function CalendarPopup({ selectedDate, onSelect, onClose }) {
-  // Use October 13, 2025 as "today" for demo (or use real today)
-  const fixedToday = new Date(2025, 9, 13); // Month is 0-indexed → Oct = 9
+function CalendarPopup({ selectedDate, onSelect, onClose, width = 256 }) {
+  const fixedToday = new Date(); // ✅ Real today's date
   const [currentMonth, setCurrentMonth] = useState(selectedDate || fixedToday);
 
   const goToPrevMonth = () => {
@@ -101,7 +100,10 @@ function CalendarPopup({ selectedDate, onSelect, onClose }) {
   }
 
   return (
-    <div className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg w-64 p-4">
+    <div 
+      className="absolute z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4"
+      style={{ width: `${width}px` }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={goToPrevMonth} className="p-1 rounded hover:bg-gray-100">
@@ -130,9 +132,11 @@ function CalendarPopup({ selectedDate, onSelect, onClose }) {
 export default function DateInput({ label, value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
   const handleSelect = (date) => {
     onChange(date);
+    setIsOpen(false);
   };
 
   const handleClear = (e) => {
@@ -159,6 +163,7 @@ export default function DateInput({ label, value, onChange }) {
       {label && <label className="block text-sm text-gray-600 mb-1">{label}</label>}
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           readOnly
           value={value ? formatDateDisplay(value) : ''}
@@ -176,11 +181,12 @@ export default function DateInput({ label, value, onChange }) {
         </div>
       </div>
 
-      {isOpen && (
+      {isOpen && inputRef.current && (
         <CalendarPopup
           selectedDate={value}
           onSelect={handleSelect}
           onClose={() => setIsOpen(false)}
+          width={inputRef.current.offsetWidth}
         />
       )}
     </div>

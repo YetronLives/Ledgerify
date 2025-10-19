@@ -13,16 +13,16 @@ app.use(cors());
 
 const argon2 = require('argon2');
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_KEY
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Email transporter configuration
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // You can use 'gmail', 'outlook', or configure custom SMTP
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
   }
 });
 
@@ -37,22 +37,20 @@ app.get('/ping', (req, res) => {
 app.get('/users', async (req, res) => {
   const { data, error } = await supabase.from('users').select('*');
   if (error) return res.status(500).json({ error: error.message });
-    res.json({ message: 'Connected to Supabase!', users: data });
+  res.json({ message: 'Connected to Supabase!', users: data });
 });
 
 app.post('/CreateUser', async (req, res) => {
-  const {first_name, last_name, question1, q1_answer, question2, q2_answer, email, address, date_of_birth, role} = req.body;
-  const password = "TempPass123!"
-  let username = first_name[0] + last_name + date_of_birth.slice(5,7) + date_of_birth.slice(2, 4)
-  username = username.toLowerCase()
+  const { first_name, last_name, question1, q1_answer, question2, q2_answer, email, address, date_of_birth, role } = req.body;
+  const password = "TempPass123!";
+  let username = first_name[0] + last_name + date_of_birth.slice(5, 7) + date_of_birth.slice(2, 4);
+  username = username.toLowerCase();
   const password_expires = new Date();
-  console.log("Default Date: ", password_expires.toISOString())
   password_expires.setDate(password_expires.getDate() + 3);
-  
+
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
-  const argon2 = require('argon2');
   const password_hash = await argon2.hash(password, { type: argon2.argon2id });
   const { data, error } = await supabase.from('users').insert([{
     first_name,
@@ -69,27 +67,26 @@ app.post('/CreateUser', async (req, res) => {
     date_of_birth,
     password_expires: password_expires.toISOString(),
     account_status: role === 'admin' ? true : false
-
   }]).select();
-    if (error) return res.status(400).json({ error: error.message });
-    
-    console.log('Attempting to log user creation event...');
-    const logResult = await EventLogger.logUserCreation(data[0].id, data[0], data[0].id);
-    console.log('Log result:', logResult);
-    if (!logResult.success) {
-      console.error('Failed to log user creation event:', logResult.error);
-    }
-    
-    res.status(201).json({ message: 'User created successfully', user: data[0] });
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  console.log('Attempting to log user creation event...');
+  const logResult = await EventLogger.logUserCreation(data[0].id, data[0], data[0].id);
+  console.log('Log result:', logResult);
+  if (!logResult.success) {
+    console.error('Failed to log user creation event:', logResult.error);
+  }
+
+  res.status(201).json({ message: 'User created successfully', user: data[0] });
 });
 
 app.post('/Login', async (req, res) => {
-  const { username, password } = req.body; // "username" can be either username or email
+  const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username/email and password are required.' });
   }
 
-  // Try to find user by either username or email
   const { data: users, error: fetchErr } = await supabase
     .from('users')
     .select('id, email, first_name, last_name, role, password_hash, account_status, login_attempts, date_of_birth, address, username, q1_answer, q2_answer, password_expires')
@@ -122,7 +119,7 @@ app.post('/Login', async (req, res) => {
       .from('users')
       .update({ login_attempts: (user.login_attempts || 0) + 1 })
       .eq('id', user.id);
-      console.log('Invalid password attempt for user:', username);
+    console.log('Invalid password attempt for user:', username);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
 
@@ -139,7 +136,7 @@ app.post('/Login', async (req, res) => {
 // Forgot Password - Step 1: Verify username and email
 app.post('/forgot-password/verify-user', async (req, res) => {
   const { username, email } = req.body;
-  
+
   if (!username || !email) {
     return res.status(400).json({ error: 'Username and email are required.' });
   }
@@ -165,11 +162,10 @@ app.post('/forgot-password/verify-user', async (req, res) => {
       return res.status(403).json({ error: 'Account is inactive or suspended.' });
     }
 
-    // Return user data for security questions (without sensitive info)
     const { id, ...userData } = user;
-    return res.json({ 
-      message: 'User verified successfully', 
-      user: userData 
+    return res.json({
+      message: 'User verified successfully',
+      user: userData
     });
 
   } catch (err) {
@@ -180,7 +176,7 @@ app.post('/forgot-password/verify-user', async (req, res) => {
 // Forgot Password - Step 2: Verify security answers
 app.post('/forgot-password/verify-answers', async (req, res) => {
   const { username, answer1, answer2 } = req.body;
-  
+
   if (!username || !answer1 || !answer2) {
     return res.status(400).json({ error: 'Username and both security answers are required.' });
   }
@@ -211,7 +207,7 @@ app.post('/forgot-password/verify-answers', async (req, res) => {
       return res.status(401).json({ error: 'One or more security answers are incorrect.' });
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Security answers verified successfully',
       verified: true
     });
@@ -223,23 +219,19 @@ app.post('/forgot-password/verify-answers', async (req, res) => {
 
 app.post('/forgot-password/reset', async (req, res) => {
   const { username, newPassword } = req.body;
-  
+
   if (!username || !newPassword) {
     return res.status(400).json({ error: 'Username and new password are required.' });
   }
 
-  // Basic password validation - just check minimum length
   if (newPassword.length < 6) {
-    return res.status(400).json({ 
-      error: 'Password must be at least 6 characters long.' 
+    return res.status(400).json({
+      error: 'Password must be at least 6 characters long.'
     });
   }
 
   try {
-    // Hash the new password
     const password_hash = await argon2.hash(newPassword, { type: argon2.argon2id });
-
-    // Calculate new password expiration date (3 days from now)
     const password_expires = new Date();
     password_expires.setDate(password_expires.getDate() + 3);
 
@@ -254,10 +246,10 @@ app.post('/forgot-password/reset', async (req, res) => {
     }
     const { data, error } = await supabase
       .from('users')
-      .update({ 
+      .update({
         password_hash: password_hash,
         password_expires: password_expires.toISOString(),
-        login_attempts: 0  // Reset login attempts on password change
+        login_attempts: 0
       })
       .eq('username', username.toLowerCase())
       .select('*');
@@ -271,16 +263,16 @@ app.post('/forgot-password/reset', async (req, res) => {
     }
 
     const logResult = await EventLogger.logUserUpdate(
-      data[0].id, 
-      beforeData, 
-      data[0], 
+      data[0].id,
+      beforeData,
+      data[0],
       data[0].id
     );
     if (!logResult.success) {
       console.error('Failed to log password reset event:', logResult.error);
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Password reset successfully',
       success: true
     });
@@ -290,10 +282,9 @@ app.post('/forgot-password/reset', async (req, res) => {
   }
 });
 
-
 // Update User endpoint
 app.put('/users/:identifier', async (req, res) => {
-  const { identifier } = req.params; // Can be username or email
+  const { identifier } = req.params;
   const { first_name, last_name, email, role, account_status, address, date_of_birth } = req.body;
 
   if (!identifier) {
@@ -301,7 +292,6 @@ app.put('/users/:identifier', async (req, res) => {
   }
 
   try {
-    // Build the update object with only provided fields
     const updateData = {};
     if (first_name !== undefined) updateData.first_name = first_name;
     if (last_name !== undefined) updateData.last_name = last_name;
@@ -311,18 +301,16 @@ app.put('/users/:identifier', async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
 
-    // First, try to find the user by username, then by email
     let { data: user, error: findError } = await supabase
       .from('users')
       .select('id, username, email')
       .eq('username', identifier.toLowerCase())
       .maybeSingle();
 
-    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (findError && findError.code !== 'PGRST116') {
       return res.status(500).json({ error: 'Database error while finding user.' });
     }
 
-    // If not found by username, try by email
     if (!user) {
       const { data: userByEmail, error: findEmailError } = await supabase
         .from('users')
@@ -362,9 +350,9 @@ app.put('/users/:identifier', async (req, res) => {
     }
 
     const logResult = await EventLogger.logUserUpdate(
-      updatedUser.id, 
-      beforeData, 
-      updatedUser, 
+      updatedUser.id,
+      beforeData,
+      updatedUser,
       updatedUser.id
     );
     if (!logResult.success) {
@@ -372,7 +360,7 @@ app.put('/users/:identifier', async (req, res) => {
     }
     const { password_hash, ...safeUser } = updatedUser;
 
-    return res.json({ 
+    return res.json({
       message: 'User updated successfully',
       user: safeUser
     });
@@ -385,25 +373,23 @@ app.put('/users/:identifier', async (req, res) => {
 
 // Delete User endpoint
 app.delete('/users/:identifier', async (req, res) => {
-  const { identifier } = req.params; // Can be username or email
+  const { identifier } = req.params;
 
   if (!identifier) {
     return res.status(400).json({ error: 'User identifier is required.' });
   }
 
   try {
-    // First, try to find the user by username, then by email
     let { data: user, error: findError } = await supabase
       .from('users')
       .select('id, username, email')
       .eq('username', identifier.toLowerCase())
       .maybeSingle();
 
-    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (findError && findError.code !== 'PGRST116') {
       return res.status(500).json({ error: 'Database error while finding user.' });
     }
 
-    // If not found by username, try by email
     if (!user) {
       const { data: userByEmail, error: findEmailError } = await supabase
         .from('users')
@@ -441,15 +427,15 @@ app.delete('/users/:identifier', async (req, res) => {
     }
 
     const logResult = await EventLogger.logUserDeletion(
-      user.id, 
-      beforeData, 
+      user.id,
+      beforeData,
       user.id
     );
     if (!logResult.success) {
       console.error('Failed to log user deletion event:', logResult.error);
     }
 
-    return res.json({ 
+    return res.json({
       message: 'User deleted successfully',
       username: user.username
     });
@@ -463,7 +449,6 @@ app.delete('/users/:identifier', async (req, res) => {
 // Endpoint to update existing users with password expiration dates
 app.post('/update-password-expires', async (req, res) => {
   try {
-    // Get all users who don't have password_expires set
     const { data: usersWithoutExpires, error: fetchError } = await supabase
       .from('users')
       .select('id, created_at, password_expires')
@@ -479,7 +464,6 @@ app.post('/update-password-expires', async (req, res) => {
 
     let updatedCount = 0;
 
-    // Update each user with password_expires = created_at + 3 days
     for (const user of usersWithoutExpires) {
       const createdAt = new Date(user.created_at);
       const passwordExpires = new Date(createdAt);
@@ -497,7 +481,7 @@ app.post('/update-password-expires', async (req, res) => {
       }
     }
 
-    return res.json({ 
+    return res.json({
       message: `Successfully updated ${updatedCount} users with password expiration dates.`,
       updated: updatedCount,
       total: usersWithoutExpires.length
@@ -529,17 +513,17 @@ app.post('/send-email', async (req, res) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    
+
     console.log('Email sent successfully:', info.messageId);
-    return res.json({ 
+    return res.json({
       message: 'Email sent successfully',
-      messageId: info.messageId 
+      messageId: info.messageId
     });
 
   } catch (err) {
     console.error('Error sending email:', err);
-    return res.status(500).json({ 
-      error: 'Failed to send email: ' + err.message 
+    return res.status(500).json({
+      error: 'Failed to send email: ' + err.message
     });
   }
 });
@@ -555,7 +539,7 @@ app.get('/chart-of-accounts/:userId', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('chart_of_accounts')
-      .select('*')
+      .select('account_id, account_number, account_name, account_description, normal_side, category, subcategory, initial_balance, debit, credit, balance, order_number, statement, comment, created_at, user_id, is_active')
       .eq('user_id', userId)
       .order('account_number', { ascending: true });
 
@@ -563,36 +547,34 @@ app.get('/chart-of-accounts/:userId', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.json({ 
-      message: 'Accounts fetched successfully', 
+    return res.json({
+      message: 'Accounts fetched successfully',
       accounts: data || [],
       count: data ? data.length : 0
     });
-
   } catch (err) {
     console.error('Error fetching accounts:', err);
     return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
   }
 });
-//No ID required
-app.get('/chart-of-accounts', async (req, res) => {
 
+// No ID required
+app.get('/chart-of-accounts', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('chart_of_accounts')
-      .select('*')
+      .select('account_id, account_number, account_name, account_description, normal_side, category, subcategory, initial_balance, debit, credit, balance, order_number, statement, comment, created_at, user_id, is_active')
       .order('account_number', { ascending: true });
 
     if (error) {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.json({ 
-      message: 'Accounts fetched successfully', 
+    return res.json({
+      message: 'Accounts fetched successfully',
       accounts: data || [],
       count: data ? data.length : 0
     });
-
   } catch (err) {
     console.error('Error fetching accounts:', err);
     return res.status(500).json({ error: 'Server error occurred while fetching accounts.' });
@@ -601,13 +583,12 @@ app.get('/chart-of-accounts', async (req, res) => {
 
 // Create Chart of Account
 app.post('/CreateChartOfAccount', async (req, res) => {
-  const {user_id, account_name, account_number, account_description, normal_side, category, subcategory, initial_balance, order_number, statement, comment, is_active} = req.body;
-  
+  const { user_id, account_name, account_number, account_description, normal_side, category, subcategory, initial_balance, order_number, statement, comment, is_active } = req.body;
+
   if (!account_name || !account_number || !category || !normal_side) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
-  // Check for duplicate account_number or account_name for this user in a single query
   const { data: existingAccounts, error: checkError } = await supabase
     .from('chart_of_accounts')
     .select('account_number, account_name')
@@ -621,7 +602,7 @@ app.post('/CreateChartOfAccount', async (req, res) => {
   if (existingAccounts && existingAccounts.length > 0) {
     const duplicateNumber = existingAccounts.find(acc => acc.account_number === account_number);
     const duplicateName = existingAccounts.find(acc => acc.account_name === account_name);
-    
+
     if (duplicateNumber && duplicateName) {
       return res.status(409).json({ error: `Account number ${account_number} and account name "${account_name}" already exist. Please use different values.` });
     } else if (duplicateNumber) {
@@ -630,7 +611,7 @@ app.post('/CreateChartOfAccount', async (req, res) => {
       return res.status(409).json({ error: `Account name "${account_name}" already exists. Please use a different account name.` });
     }
   }
-  // Calculate debit, credit, and balance based on normal_side
+
   let debit = 0;
   let credit = 0;
   let balance = 0;
@@ -666,30 +647,31 @@ app.post('/CreateChartOfAccount', async (req, res) => {
   }]).select();
 
   if (error) return res.status(400).json({ error: error.message });
-  
-  const logResult = await EventLogger.logAccountCreation(data[0].id, data[0], user_id);
+
+  // ✅ FIXED: Use account_id for logging
+  const logResult = await EventLogger.logAccountCreation(data[0].account_id, data[0], user_id);
   if (!logResult.success) {
     console.error('Failed to log account creation event:', logResult.error);
   }
-  
+
   res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
 });
 
-// Update Chart of Account
+// ✅ FIXED: Use account_id in WHERE clause
 app.put('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
-  const { 
-    account_name, 
-    account_number, 
-    account_description, 
-    normal_side, 
-    category, 
-    subcategory, 
-    initial_balance, 
-    order_number, 
-    statement, 
-    comment, 
-    is_active 
+  const {
+    account_name,
+    account_number,
+    account_description,
+    normal_side,
+    category,
+    subcategory,
+    initial_balance,
+    order_number,
+    statement,
+    comment,
+    is_active
   } = req.body;
 
   if (!accountId) {
@@ -697,15 +679,17 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
   }
 
   try {
+    // ✅ Query by account_id
     const { data: beforeData, error: fetchError } = await supabase
       .from('chart_of_accounts')
       .select('*')
-      .eq('id', accountId)
+      .eq('account_id', accountId)
       .single();
 
     if (fetchError) {
       return res.status(404).json({ error: 'Account not found.' });
     }
+
     const updateData = {};
     if (account_name !== undefined) updateData.account_name = account_name;
     if (account_number !== undefined) updateData.account_number = account_number;
@@ -734,10 +718,11 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
       }
     }
 
+    // ✅ Update by account_id
     const { data: updatedAccount, error: updateError } = await supabase
       .from('chart_of_accounts')
       .update(updateData)
-      .eq('id', accountId)
+      .eq('account_id', accountId)
       .select('*')
       .single();
 
@@ -746,16 +731,16 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
     }
 
     const logResult = await EventLogger.logAccountUpdate(
-      accountId, 
-      beforeData, 
-      updatedAccount, 
+      accountId,
+      beforeData,
+      updatedAccount,
       beforeData.user_id
     );
     if (!logResult.success) {
       console.error('Failed to log account update event:', logResult.error);
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Account updated successfully',
       account: updatedAccount
     });
@@ -766,7 +751,7 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
   }
 });
 
-// Delete Chart of Account
+// ✅ FIXED: Delete by account_id
 app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
 
@@ -775,34 +760,37 @@ app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   }
 
   try {
+    // ✅ Query by account_id
     const { data: beforeData, error: fetchError } = await supabase
       .from('chart_of_accounts')
       .select('*')
-      .eq('id', accountId)
+      .eq('account_id', accountId)
       .single();
 
     if (fetchError) {
       return res.status(404).json({ error: 'Account not found.' });
     }
+
+    // ✅ Delete by account_id
     const { error: deleteError } = await supabase
       .from('chart_of_accounts')
       .delete()
-      .eq('id', accountId);
+      .eq('account_id', accountId);
 
     if (deleteError) {
       return res.status(500).json({ error: 'Failed to delete account: ' + deleteError.message });
     }
 
     const logResult = await EventLogger.logAccountDeletion(
-      accountId, 
-      beforeData, 
+      accountId,
+      beforeData,
       beforeData.user_id
     );
     if (!logResult.success) {
       console.error('Failed to log account deletion event:', logResult.error);
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Account deleted successfully',
       account_name: beforeData.account_name
     });
@@ -824,12 +812,12 @@ app.get('/event-logs/user/:userId', async (req, res) => {
 
   try {
     const result = await EventLogger.getUserEventLogs(parseInt(userId), parseInt(limit), parseInt(offset));
-    
+
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Event logs fetched successfully',
       logs: result.data,
       count: result.data.length
@@ -852,12 +840,12 @@ app.get('/event-logs/table/:tableName', async (req, res) => {
 
   try {
     const result = await EventLogger.getTableEventLogs(tableName, parseInt(limit), parseInt(offset));
-    
+
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
 
-    return res.json({ 
+    return res.json({
       message: 'Event logs fetched successfully',
       logs: result.data,
       count: result.data.length
@@ -875,12 +863,12 @@ app.get('/event-logs/all', async (req, res) => {
 
   try {
     const result = await EventLogger.getAllEventLogs(parseInt(limit), parseInt(offset));
-    
+
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
 
-    return res.json({ 
+    return res.json({
       message: 'All event logs fetched successfully',
       logs: result.data,
       count: result.data.length,
@@ -893,6 +881,44 @@ app.get('/event-logs/all', async (req, res) => {
   } catch (err) {
     console.error('Get all event logs error:', err);
     return res.status(500).json({ error: 'Server error occurred while fetching all event logs.' });
+  }
+});
+
+// Get Event Logs for a specific Chart of Accounts record (by account_id)
+app.get('/api/accounts/:accountId/event-logs', async (req, res) => {
+  const { accountId } = req.params;
+
+  if (!accountId) {
+    return res.status(400).json({ error: 'Account ID is required.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('event_log')
+      .select('*')
+      .eq('table_name', 'chart_of_accounts')
+      .eq('record_id', accountId) // record_id = account_id
+      .order('event_time', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error fetching event logs:', error);
+      return res.status(500).json({ error: 'Failed to fetch event logs.' });
+    }
+
+    const parsedLogs = data.map(log => ({
+      ...log,
+      before_image: log.before_image ? JSON.parse(log.before_image) : null,
+      after_image: log.after_image ? JSON.parse(log.after_image) : null
+    }));
+
+    return res.json({
+      success: true,
+      eventLogs: parsedLogs
+    });
+
+  } catch (err) {
+    console.error('Unexpected error in /api/accounts/:accountId/event-logs:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
