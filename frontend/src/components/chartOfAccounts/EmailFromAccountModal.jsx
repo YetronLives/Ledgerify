@@ -4,7 +4,7 @@ import Modal from '../ui/Modal';
 import EmailForm from '../userManagement/EmailForm';
 
 const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
-  const [toRole, setToRole] = useState('manager');
+  const [toRole, setToRole] = useState('Manager');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -47,13 +47,13 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
   if (!isOpen) return null;
 
   return (
-    <Modal 
-      isOpen={isOpen} 
+    <Modal
+      isOpen={isOpen}
       onClose={() => {
         onClose();
         setView('select');
         setSelectedUser(null);
-      }} 
+      }}
       title={view === 'select' ? "Select Recipient" : "Send Email to Team"}
     >
       {view === 'select' ? (
@@ -68,8 +68,8 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
               onChange={(e) => setToRole(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
             >
-              <option value="manager">Manager</option>
-              <option value="accountant">Accountant</option>
+              <option value="Manager">Manager</option>
+              <option value="Accountant">Accountant</option>
             </select>
           </div>
 

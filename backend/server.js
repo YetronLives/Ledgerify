@@ -35,9 +35,23 @@ app.get('/ping', (req, res) => {
 });
 
 app.get('/users', async (req, res) => {
-  const { data, error } = await supabase.from('users').select('*');
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: 'Connected to Supabase!', users: data });
+  let query = supabase.from('users').select('*');
+
+  const { role } = req.query;
+  if (role) {
+    query = query.eq('role', role);
+  }
+
+  try {
+    const { data, error } = await query;
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ message: 'Users fetched successfully', users: data });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error while fetching users.' });
+  }
 });
 
 app.post('/CreateUser', async (req, res) => {
@@ -657,22 +671,22 @@ app.post('/CreateChartOfAccount', async (req, res) => {
   res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
 });
 
-// ✅ FIXED: Use account_id in WHERE clause
+// Use account_id in WHERE clause
 app.put('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
-  const { 
-    account_name, 
-    account_number, 
-    account_description, 
-    normal_side, 
-    category, 
-    subcategory, 
-    initial_balance, 
-    order_number, 
-    statement, 
-    comment, 
+  const {
+    account_name,
+    account_number,
+    account_description,
+    normal_side,
+    category,
+    subcategory,
+    initial_balance,
+    order_number,
+    statement,
+    comment,
     is_active,
-    addedDate  // ✅ FIXED: addedDate now defined
+    addedDate  
   } = req.body;
 
   if (!accountId) {
@@ -702,13 +716,11 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
     if (statement !== undefined) updateData.statement = statement;
     if (comment !== undefined) updateData.comment = comment;
     if (is_active !== undefined) updateData.is_active = is_active;
-    
-    // ✅ Handle addedDate
+
     if (addedDate !== undefined) {
       updateData.created_at = addedDate;
     }
 
-    // ✅ Safety checks for beforeData
     if (normal_side !== undefined || initial_balance !== undefined) {
       const newNormalSide = normal_side !== undefined ? normal_side : (beforeData?.normal_side || 'debit');
       const newInitialBalance = initial_balance !== undefined ? initial_balance : (beforeData?.initial_balance || 0);
@@ -757,7 +769,6 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
   }
 });
 
-// ✅ FIXED: Delete by account_id
 app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
 
@@ -766,7 +777,6 @@ app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   }
 
   try {
-    // ✅ Query by account_id
     const { data: beforeData, error: fetchError } = await supabase
       .from('chart_of_accounts')
       .select('*')
@@ -777,7 +787,6 @@ app.delete('/chart-of-accounts/:accountId', async (req, res) => {
       return res.status(404).json({ error: 'Account not found.' });
     }
 
-    // ✅ Delete by account_id
     const { error: deleteError } = await supabase
       .from('chart_of_accounts')
       .delete()
