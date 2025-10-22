@@ -278,13 +278,16 @@ function App() {
     };
 
     // --- Function to approve/reject entries ---
-    const updateJournalEntryStatus = (entryId, newStatus) => {
+    const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
         let entryToUpdate = null;
 
         setJournalEntries(prevEntries => 
             prevEntries.map(entry => {
                 if (entry.id === entryId) {
                     entryToUpdate = { ...entry, status: newStatus };
+                   if (newStatus === 'Rejected' && reason) {
+                       entryToUpdate.rejectionReason = reason;
+                   }
                     return entryToUpdate;
                 }
                 return entry;

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { IconPaperclip, IconX } from '../ui/Icons'; 
 
 function JournalEntryForm({ accounts, onSubmit, onCancel, currentUser }) {
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -6,6 +7,11 @@ function JournalEntryForm({ accounts, onSubmit, onCancel, currentUser }) {
     const [debits, setDebits] = useState([{ id: Date.now(), accountId: '', amount: '' }]);
     const [credits, setCredits] = useState([{ id: Date.now() + 1, accountId: '', amount: '' }]);
     const [error, setError] = useState('');
+    
+    // --- State for attachments ---
+    const [attachments, setAttachments] = useState([]);
+    const fileInputRef = React.useRef(null);
+    const ACCEPTED_FILES = "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,image/jpeg,image/png";
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -37,6 +43,27 @@ function JournalEntryForm({ accounts, onSubmit, onCancel, currentUser }) {
     const totalDebits = useMemo(() => debits.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [debits]);
     const totalCredits = useMemo(() => credits.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [credits]);
 
+    // --- File attachment handlers ---
+    const handleFileChange = (e) => {
+        const newFiles = Array.from(e.target.files);
+        const validFiles = [];
+        for (const file of newFiles) {
+            if (!attachments.find(f => f.name === file.name && f.size === file.size)) {
+                validFiles.push(file);
+            }
+        }
+        setAttachments(prev => [...prev, ...validFiles]);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = null;
+        }
+    };
+
+    const removeAttachment = (fileName) => {
+        setAttachments(prev => prev.filter(file => file.name !== fileName));
+    };
+
+
+    // This will need updating with backend integration later
     const handleFormSubmit = (e) => {
         e.preventDefault();
         setError('');
@@ -61,13 +88,16 @@ function JournalEntryForm({ accounts, onSubmit, onCancel, currentUser }) {
             date: new Date().toISOString(),
             description,
             debits: debits.map(d => ({ ...d, amount: parseFloat(d.amount) })),
-            credits: credits.map(c => ({ ...c, amount: parseFloat(c.amount) }))
+            credits: credits.map(c => ({ ...c, amount: parseFloat(c.amount) })),
+            // ---Add attachment metadata (name, size, type) ---
+            attachments: attachments.map(f => ({ name: f.name, size: f.size, type: f.type }))
         };
         onSubmit(entry);
 
+        // --- Notify accountant of pending review ---
         if (currentUser && currentUser.role === 'Accountant') {
-           alert('Your journal entry has been submitted for manager review.');
-       }
+            alert('Your journal entry has been submitted for manager review.');
+        }
     };
 
     const sortedAccounts = useMemo(() => [...accounts].sort((a, b) => a.name.localeCompare(b.name)), [accounts]);
@@ -131,6 +161,52 @@ function JournalEntryForm({ accounts, onSubmit, onCancel, currentUser }) {
                         <div className="text-right font-bold pt-2">Total Credits: ${totalCredits.toFixed(2)}</div>
                     </div>
                 </div>
+
+                {/* --- Attachments Section --- */}
+                <div>
+                    <h3 className="text-lg font-semibold mb-2">Attachments</h3>
+                    <label 
+                        className="w-full flex justify-center px-4 py-6 bg-white text-blue-600 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-gray-50 cursor-pointer"
+                        title="Allowed types: pdf, word, excel, csv, jpg, png"
+                    >
+                        <span className="flex items-center space-x-2">
+                            <IconPaperclip className="w-5 h-5" />
+                            <span>Click to add source documents</span>
+                        </span>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            accept={ACCEPTED_FILES}
+                            onChange={handleFileChange}
+                            className="hidden"
+                        />
+                    </label>
+                    {attachments.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                            <p className="text-sm font-medium text-gray-600">Attached files:</p>
+                            <ul className="list-disc list-inside space-y-1 pl-2">
+                                {attachments.map(file => (
+                                    <li key={file.name} className="text-sm text-gray-700 flex items-center justify-between">
+                                        <span>
+                                            {file.name} 
+                                            <span className="text-gray-500 text-xs ml-2">({(file.size / 1024).toFixed(1)} KB)</span>
+                                        </span>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeAttachment(file.name)}
+                                            className="text-red-500 hover:text-red-700"
+                                            title="Remove attachment"
+                                        >
+                                            <IconX className="w-4 h-4" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
 
                 {error && <div className="text-red-600 text-sm text-center font-semibold p-2 bg-red-50 rounded-lg">{error}</div>}
                 <div className={`text-center font-bold text-lg p-2 rounded-lg ${totalDebits !== totalCredits || totalDebits === 0 ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'}`}>

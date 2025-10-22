@@ -1,7 +1,11 @@
-import React from 'react';
-import { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import DateInput from '../ui/DateInput'; 
 
 function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJournalEntryId }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
+    
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
@@ -42,7 +46,9 @@ function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJo
         }
         
         const relatedJournalEntries = journalEntries.filter(je => 
-            je.debits.some(d => d.accountId == account.id) || je.credits.some(c => c.accountId == account.id)
+            (je.debits.some(d => d.accountId == account.id) || je.credits.some(c => c.accountId == account.id)) &&
+            // Only show approved entries in the ledger
+            je.status === 'Approved'
         );
 
         relatedJournalEntries.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -81,21 +87,62 @@ function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJo
             }
         }
 
+        // --- Filter the transactions ---
+        const filteredTransactions = txs.filter(tx => {
+            // Date Filtering
+            if (startDate && !endDate) { // Single date filter
+                const txDate = new Date(tx.date);
+                if (txDate.getUTCFullYear() !== startDate.getUTCFullYear() ||
+                    txDate.getUTCMonth() !== startDate.getUTCMonth() ||
+                    txDate.getUTCDate() !== startDate.getUTCDate()) {
+                    return false;
+                }
+            } else if (startDate && endDate) { // Date range filter
+                const txDate = new Date(tx.date);
+                const inclusiveEndDate = new Date(endDate);
+                inclusiveEndDate.setUTCHours(23, 59, 59, 999);
+                if (txDate < startDate || txDate > inclusiveEndDate) {
+                    return false;
+                }
+            }
+
+            // Search Term Filtering (by description or amount)
+            if (searchTerm) {
+                const lowerSearchTerm = searchTerm.toLowerCase();
+                const inDescription = tx.description.toLowerCase().includes(lowerSearchTerm);
+                const inAmount = tx.debit.toFixed(2).includes(lowerSearchTerm) || tx.credit.toFixed(2).includes(lowerSearchTerm);
+                
+                if (!inDescription && !inAmount) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+
         return {
-            transactions: txs,
-            totalDebits: totalDebits,
-            totalCredits: totalCredits,
-            currentBalance: runningBalance 
+            transactions: filteredTransactions, 
+            totalDebits: totalDebits,           
+            totalCredits: totalCredits,         
+            currentBalance: runningBalance     
         };
-    }, [account, journalEntries]);
+    }, [account, journalEntries, searchTerm, startDate, endDate]);
 
     const { transactions, totalDebits, totalCredits, currentBalance } = ledgerData;
 
     const handlePostRefClick = (journalId) => {
-      if (!journalId || journalId === 'OB' || !setPage || !setSelectedJournalEntryId) return;
-       setSelectedJournalEntryId(journalId);
-       setPage('journal');
-   };
+        if (!journalId || journalId === 'OB' || !setPage || !setSelectedJournalEntryId) return;
+        setSelectedJournalEntryId(journalId);
+        setPage('journal');
+    };
+
+    // ---Reset filters function ---
+    const resetFilters = () => {
+        setSearchTerm('');
+        setStartDate(null);
+        setEndDate(null);
+    };
+
 
     if (!account) return null;
 
@@ -169,6 +216,36 @@ function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJo
                     )}
                 </div>
             </div>
+            
+            {/* --- Filter Controls --- */}
+            <div className="p-4 bg-gray-50 rounded-lg border mb-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Search by Description or Amount</label>
+                        <input
+                            type="text"
+                            placeholder="e.g., Office Supplies or 50.00"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <DateInput value={startDate} onChange={setStartDate} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <DateInput value={endDate} onChange={setEndDate} />
+                    </div>
+                </div>
+                <div className="flex justify-end">
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-semibold">
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+
             <div>
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Transaction History</h3>
                 <div className="overflow-x-auto border rounded-lg">
@@ -191,16 +268,16 @@ function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJo
                                         <td className="p-3">{txn.description}</td>
                                         <td className="p-3 font-mono text-xs">
                                             {txn.postRef === 'OB' ? (
-                                               <span>{txn.postRef}</span>
-                                           ) : (
-                                               <button
-                                                   onClick={() => handlePostRefClick(txn.postRef)}
-                                                   className="text-blue-600 hover:underline hover:font-bold"
-                                                   title={`View Journal Entry ${txn.postRef}`}
-                                               >
-                                                   {txn.postRef}
-                                               </button>
-                                          )}
+                                                <span>{txn.postRef}</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handlePostRefClick(txn.postRef)}
+                                                    className="text-blue-600 hover:underline hover:font-bold"
+                                                    title={`View Journal Entry ${txn.postRef}`}
+                                                >
+                                                    {txn.postRef}
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="p-3 text-right font-mono">
                                             {txn.debit > 0 ? `$${txn.debit.toFixed(2)}` : ''}
@@ -216,7 +293,7 @@ function AccountLedger({ account, onBack, journalEntries, setPage, setSelectedJo
                             ) : (
                                 <tr>
                                     <td colSpan="6" className="text-center p-8 text-gray-500">
-                                        No transactions recorded for this account yet.
+                                        No transactions match your criteria.
                                     </td>
                                 </tr>
                             )}
