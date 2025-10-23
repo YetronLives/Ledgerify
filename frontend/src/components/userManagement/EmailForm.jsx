@@ -33,7 +33,7 @@ function EmailForm({ user, close }) {
 
             console.log('Email sent successfully:', data);
             setSent(true);
-            
+
             setTimeout(() => {
                 close();
             }, 3000);
@@ -51,7 +51,6 @@ function EmailForm({ user, close }) {
                 <div className="text-center text-green-600 font-semibold my-4">Email sent successfully!</div>
             ) : (
                 <>
-                    <p className="mb-4">Email user: <strong>{user.fullName}</strong></p>
                     <div className="mb-4">
                         <label className="block text-gray-600 mb-2">Subject</label>
                         <input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required />
