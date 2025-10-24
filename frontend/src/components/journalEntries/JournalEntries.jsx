@@ -1,3 +1,5 @@
+// src/components/JournalEntriesPage.jsx
+
 import React, { useState, useMemo } from 'react';
 import { IconPlusCircle, IconPaperclip } from '../ui/Icons'; 
 import JournalEntryForm from './JournalEntryForm';
@@ -6,28 +8,23 @@ import Modal from '../ui/Modal';
 
 function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJournalEntry, setPage, setSelectedLedgerAccountId, selectedJournalEntryId, setSelectedJournalEntryId, updateJournalEntryStatus }) {
     const [isCreating, setIsCreating] = useState(false);
-    
     const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' ? 'Pending' : 'Approved');
-    
-    const canCreate = currentUser.role === 'Manager' || currentUser.role === 'Accountant';
-    const isManager = currentUser.role === 'Manager';
-
-    // Search and Filter State
     const [searchTerm, setSearchTerm] = useState('');
     const [amountFilter, setAmountFilter] = useState('');
     const [startDate, setStartDate] = useState(null);
     const [endDate, setEndDate] = useState(null);
-
-    // State for rejection modal
     const [entryToReject, setEntryToReject] = useState(null);
     const [rejectionReason, setRejectionReason] = useState('');
+    const [showAccountSuggestions, setShowAccountSuggestions] = useState(false);
+
+    const canCreate = currentUser.role === 'Manager' || currentUser.role === 'Accountant';
+    const isManager = currentUser.role === 'Manager';
 
     const handleSubmit = (newEntry) => {
         addJournalEntry(newEntry);
         setIsCreating(false);
     };
 
-    // Handler for clicking an account
     const handleAccountClick = (accountId) => {
         if (!setPage || !setSelectedLedgerAccountId) {
             console.error("Navigation functions not provided to JournalEntriesPage");
@@ -38,7 +35,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
     };
 
     const sortedAndFilteredEntries = useMemo(() => {
-        // If a specific JE is selected, show only that
         if (selectedJournalEntryId) {
             const selectedEntry = journalEntries.find(entry => entry.id === selectedJournalEntryId);
             return selectedEntry ? [selectedEntry] : [];
@@ -46,20 +42,16 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
 
         return journalEntries
             .filter(entry => {
-                // First, filter by the selected view status
-                if (entry.status !== viewStatus) {
-                    return false;
-                }
+                if (entry.status !== viewStatus) return false;
 
-                // Date Filtering
-                if (startDate && !endDate) { // Single date filter
+                if (startDate && !endDate) {
                     const entryDate = new Date(entry.date);
                     if (entryDate.getUTCFullYear() !== startDate.getUTCFullYear() ||
                         entryDate.getUTCMonth() !== startDate.getUTCMonth() ||
                         entryDate.getUTCDate() !== startDate.getUTCDate()) {
                         return false;
                     }
-                } else if (startDate && endDate) { // Date range filter
+                } else if (startDate && endDate) {
                     const entryDate = new Date(entry.date);
                     const inclusiveEndDate = new Date(endDate);
                     inclusiveEndDate.setUTCHours(23, 59, 59, 999);
@@ -68,27 +60,24 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                     }
                 }
 
-                // Amount Filtering
                 if (amountFilter) {
                     const amount = parseFloat(amountFilter);
                     const hasMatchingAmount = entry.debits.some(d => d.amount === amount) || entry.credits.some(c => c.amount === amount);
                     if (!hasMatchingAmount) return false;
                 }
 
-                // Text Search Filtering
                 if (searchTerm) {
                     const lowerSearchTerm = searchTerm.toLowerCase();
                     const inDescription = entry.description?.toLowerCase().includes(lowerSearchTerm);
                     const inAccountName = 
                         entry.debits.some(d => allAccounts.find(a => a.id == d.accountId)?.name.toLowerCase().includes(lowerSearchTerm)) ||
                         entry.credits.some(c => allAccounts.find(a => a.id == c.accountId)?.name.toLowerCase().includes(lowerSearchTerm));
-                    
                     if (!inDescription && !inAccountName) return false;
                 }
                 
                 return true;
             })
-            .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by most recent
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
     }, [journalEntries, searchTerm, amountFilter, startDate, endDate, allAccounts, selectedJournalEntryId, viewStatus]);
 
     const resetFilters = () => {
@@ -107,9 +96,8 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
             : 'px-4 py-2 font-semibold text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300';
     };
 
-    // Handler for confirming rejection
     const handleConfirmReject = () => {
-        if (!entryToReject || !rejectionReason) return; // Ensures reason is not empty
+        if (!entryToReject || !rejectionReason) return;
         updateJournalEntryStatus(entryToReject.id, 'Rejected', rejectionReason);
         setEntryToReject(null);
         setRejectionReason('');
@@ -120,11 +108,20 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
         setRejectionReason('');
     };
 
+    const filteredAccountsForSearch = useMemo(() => {
+        if (!searchTerm) return [];
+        return allAccounts.filter(acc =>
+            acc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (acc.description && acc.description.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [searchTerm, allAccounts]);
+
     return (
         <div>
             {isCreating ? (
                 <JournalEntryForm
                     accounts={allAccounts}
+                    journalEntries={journalEntries}
                     onSubmit={handleSubmit}
                     onCancel={() => setIsCreating(false)}
                     currentUser={currentUser}
@@ -140,7 +137,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                         )}
                     </div>
 
-                    {/* Show EITHER filters OR the selected JE banner */}
                     {selectedJournalEntryId ? (
                         <div className="p-3 mb-4 bg-blue-100 border border-blue-300 rounded-lg flex justify-between items-center">
                             <span className="font-semibold text-blue-700">
@@ -155,7 +151,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                         </div>
                     ) : (
                         <>
-                            {/* View Status Navigation */}
                             <div className="flex space-x-2 mb-4">
                                 {canCreate && ( 
                                     <button onClick={() => setViewStatus('Pending')} className={getViewButtonClass('Pending')}>
@@ -170,18 +165,35 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                 </button>
                             </div>
 
-                            {/* Filter Controls */}
                             <div className="p-4 bg-gray-50 rounded-lg border mb-4 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <div>
+                                    <div className="relative">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Search by Account Name or Description</label>
                                         <input
                                             type="text"
                                             placeholder="e.g., Office Supplies"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
+                                            onFocus={() => setShowAccountSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowAccountSuggestions(false), 200)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                         />
+                                        {showAccountSuggestions && filteredAccountsForSearch.length > 0 && (
+                                            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-40 overflow-auto">
+                                                {filteredAccountsForSearch.map(acc => (
+                                                    <div
+                                                        key={acc.id}
+                                                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                                        onClick={() => {
+                                                            setSearchTerm(acc.name);
+                                                            setShowAccountSuggestions(false);
+                                                        }}
+                                                    >
+                                                        {acc.name} {acc.description && `– ${acc.description}`}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Search by Amount</label>
@@ -219,7 +231,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                     <th className="p-3">Description</th>
                                     <th className="p-3">Debits</th>
                                     <th className="p-3">Credits</th>
-                                    {/* --- Attachments Column --- */}
                                     <th className="p-3">Attachments</th>
                                     {isManager && viewStatus === 'Pending' && !selectedJournalEntryId && (
                                         <th className="p-3">Actions</th>
@@ -277,7 +288,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                     </div>
                                                 })}
                                             </td>
-                                            {/* ---Display Attachments --- */}
                                             <td className="p-3 align-top">
                                                 {entry.attachments && entry.attachments.length > 0 ? (
                                                     <div className="flex flex-col space-y-1">
@@ -333,7 +343,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                 </div>
             )}
 
-            {/* Rejection Modal */}
             <Modal isOpen={!!entryToReject} onClose={closeRejectModal} title="Reject Journal Entry">
                 <div className="space-y-4">
                     <p>
@@ -369,7 +378,6 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                     </div>
                 </div>
             </Modal>
-
         </div>
     );
 }
