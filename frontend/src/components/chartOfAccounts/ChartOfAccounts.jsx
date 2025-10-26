@@ -1,4 +1,3 @@
-// src/components/chartOfAccounts/ChartOfAccounts.jsx
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal.jsx';
 import { IconPlusCircle } from '../ui/Icons.jsx';
@@ -13,7 +12,7 @@ import EmailFromAccountModal from './EmailFromAccountModal.jsx';
 
 // Helper to map account data consistently
 const mapAccount = (acc) => ({
-  id: acc.account_id,        // 👈 THIS IS THE FIX
+  id: acc.account_id,
   number: acc.account_number,
   name: acc.account_name,
   description: acc.account_description,
@@ -32,49 +31,29 @@ const mapAccount = (acc) => ({
   isActive: acc.is_active
 });
 
-function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
-  const [accounts, setAccounts] = useState([]);
+function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, allAccounts }) {
+  const [accounts, setAccounts] = useState(allAccounts || []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [modalView, setModalView] = useState('view');
   const [formError, setFormError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [isLoading, setIsLoading] = useState(!allAccounts || allAccounts.length === 0);
 
-  // 👇 NEW: Sprint 3 modal states
+  // NEW: Sprint 3 modal states
   const [showEventLogModal, setShowEventLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   const isAdmin = currentUser.role === 'Administrator';
 
-  // Fetch accounts
   useEffect(() => {
-    const fetchAccounts = async () => {
-      if (!currentUser?.id) {
-        setIsLoading(false);
-        return;
-      }
+    setAccounts(allAccounts || []);
+    if (allAccounts) {
+      setIsLoading(false);
+    }
+  }, [allAccounts]); 
 
-      try {
-        const response = await fetch(`http://localhost:5000/chart-of-accounts`);
-        const data = await response.json();
-
-        if (response.ok && data.accounts) {
-          setAccounts(data.accounts.map(mapAccount));
-        } else {
-          console.error('Failed to fetch accounts:', data.error);
-          setAccounts([]);
-        }
-      } catch (error) {
-        console.error('Error fetching accounts:', error);
-        setAccounts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAccounts();
-  }, [currentUser.id]);
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -90,7 +69,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   };
 
   const handleViewLedger = (account) => {
-    setSelectedLedgerAccount(account);
+    setSelectedLedgerAccountId(account.id);
     setPage('ledger');
   };
 
@@ -127,88 +106,55 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     setIsAddModalOpen(false);
 
     try {
-      const response = await fetch(`http://localhost:5000/chart-of-accounts/${currentUser.id}`);
-      const data = await response.json();
+      // This is OK, but ideally App.jsx would handle this
+      const response = await fetch('http://localhost:5000/CreateChartOfAccount', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              user_id: currentUser.id,
+              account_name: newAccountData.name,
+              account_number: newAccountData.number,
+              account_description: newAccountData.description,
+              normal_side: newAccountData.normalSide.toLowerCase(),
+              category: newAccountData.category,
+              subcategory: newAccountData.subcategory,
+              initial_balance: parseFloat(newAccountData.initialBalance) || 0,
+              order_number: parseInt(newAccountData.order) || 0,
+              statement: newAccountData.statement,
+              comment: newAccountData.comment || '',
+              is_active: true,
+          })
+      });
 
-      if (response.ok && data.accounts) {
-        setAccounts(data.accounts.map(mapAccount)); // ✅ Now includes id
+      if (!response.ok) throw new Error('Failed to create account');
+
+
+      const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+      const refreshData = await refreshResponse.json();
+      if (refreshResponse.ok && refreshData.accounts) {
+        setAccounts(refreshData.accounts.map(mapAccount));
       }
+
     } catch (error) {
-      console.error('Error refreshing accounts:', error);
+      console.error('Error adding account:', error);
     }
   };
 
   const handleUpdateAccount = async (formData) => {
     if (!selectedAccount?.id) {
       setFormError('Account ID is missing. Cannot save changes.');
-      console.error('selectedAccount:', selectedAccount);
       return;
     }
-
     setFormError('');
-
-    const payload = {
-      account_name: formData.name,
-      account_number: formData.number,
-      account_description: formData.description,
-      normal_side: formData.normalSide.toLowerCase(),
-      category: formData.category,
-      subcategory: formData.subcategory,
-      initial_balance: formData.initialBalance ? parseFloat(formData.initialBalance) : 0,
-      order_number: formData.order ? parseInt(formData.order, 10) : 0,
-      statement: formData.statement,
-      comment: formData.comment,
-      is_active: selectedAccount.isActive
-    };
-
-    try {
-      const response = await fetch(`http://localhost:5000/chart-of-accounts/${selectedAccount.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update account');
-      }
-
-      // Refresh accounts
-      const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
-      const refreshData = await refreshResponse.json();
-      
-      if (refreshResponse.ok && refreshData.accounts) {
-        setAccounts(refreshData.accounts.map(mapAccount));
-      }
-
-      closeAccountModal();
-    } catch (err) {
-      console.error('Update error:', err);
-      setFormError(err.message || 'An error occurred while updating the account.');
-    }
   };
 
-  const handleAttemptDelete = () => {
-    if (selectedAccount && selectedAccount.balance !== 0) {
-      setFormError("Cannot delete an account with a non-zero balance.");
-    } else {
-      setFormError('');
-      setModalView('delete');
-    }
-  };
-
-  const handleDeleteAccount = (accountNumber) => {
-    setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
-    closeAccountModal();
-  };
 
   const handleToggleActiveStatus = async (account, e) => {
     e.stopPropagation();
     const newActiveStatus = !account.isActive;
 
     try {
-      // ❗ Use account.id, not account.number
+      // Use account.id, not account.number
       const response = await fetch(`http://localhost:5000/chart-of-accounts/${account.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -244,8 +190,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   };
 
   const openAccountModal = (account) => {
-    console.log('Opening account modal. Full account object:', account);
-    console.log('Account ID:', account.id);
     setSelectedAccount(account);
     setModalView('view');
   };
@@ -255,7 +199,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     setFormError('');
   };
 
-  // 👇 NEW: Handlers for Sprint 3
+  // NEW: Handlers for Sprint 3
   const handleOpenEventLog = (account, e) => {
     e.stopPropagation();
     setSelectedAccount(account);
@@ -268,6 +212,20 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     setShowEmailModal(true);
   };
 
+  const handleAttemptDelete = () => {
+    if (selectedAccount && selectedAccount.balance !== 0) {
+      setFormError("Cannot delete an account with a non-zero balance.");
+    } else {
+      setFormError('');
+      setModalView('delete');
+    }
+  };
+
+  const handleDeleteAccount = (accountNumber) => {
+    setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
+    closeAccountModal();
+  };
+
   // Filtering logic
   const filteredAccounts = accounts.filter(acc => {
     const searchMatch = acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || acc.number.toString().includes(searchTerm);
@@ -278,7 +236,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
       if (balanceFilter === 'all') return true;
       if (balanceFilter === '0') return acc.balance === 0;
       if (balanceFilter === '100000+') return acc.balance >= 100000;
-
       const [min, max] = balanceFilter.split('-').map(Number);
       if (min === 0) return acc.balance > min && acc.balance <= max;
       return acc.balance >= min && acc.balance < max;
@@ -311,8 +268,8 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   ];
 
   return (
+     // Existing Modals
     <div className="bg-white p-6 rounded-lg shadow-md">
-      {/* Existing Modals */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
         <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
       </Modal>
@@ -355,7 +312,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
         )}
       </Modal>
 
-      {/* 👇 NEW: Sprint 3 Modals */}
+      {/* NEW: Sprint 3 Modals */}
       {showEventLogModal && selectedAccount && (
         <AccountEventLogModal
           account={selectedAccount}
@@ -443,7 +400,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        {isLoading ? (
+        {isLoading ? ( 
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <p className="mt-2 text-gray-500">Loading accounts...</p>
@@ -468,7 +425,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
               <tbody>
                 {filteredAccounts.map((acc) => (
                   <tr
-                    key={acc.id} // ✅ Use id as key (more stable)
+                    key={acc.id} // Use id as key (more stable)
                     className="border-b hover:bg-gray-50 cursor-pointer"
                     onClick={() => openAccountModal(acc)}
                   >
@@ -521,7 +478,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
                 ))}
               </tbody>
             </table>
-            {filteredAccounts.length === 0 && (
+            {filteredAccounts.length === 0 && !isLoading && ( 
               <div className="text-center py-8 text-gray-500">No accounts found.</div>
             )}
           </>

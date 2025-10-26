@@ -414,7 +414,7 @@ function Dashboard({ user, mockUsers, pendingRequests, handleRequest, setPage })
                          {user.role === 'Manager' && (
                              <>
                                  <button onClick={() => setPage('reports')} title="Go to Financial Reports" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150">Review Reports</button>
-                                 <button title="View and approve pending transactions" className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-150">Approve Transactions</button>
+                                 <button onClick={() => setPage('journal')} title="View and approve pending transactions" className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-150">Approve Transactions</button>
                              </>
                          )}
                          {user.role === 'Accountant' && (
