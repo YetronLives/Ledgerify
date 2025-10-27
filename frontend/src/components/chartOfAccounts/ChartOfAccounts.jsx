@@ -7,7 +7,7 @@ import EditAccountForm from './EditAccountForm.jsx';
 import AccountDetails from './AccountDetails.jsx';
 import DeleteConfirmation from './DeleteConfirmation.jsx';
 
-// 👇 NEW: Sprint 3 Admin Modals
+// 👇 Sprint 3 Modals
 import AccountEventLogModal from './AccountEventLogModal.jsx';
 import EmailFromAccountModal from './EmailFromAccountModal.jsx';
 
@@ -27,7 +27,7 @@ const mapAccount = (acc) => ({
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
-  addedDate: acc.created_at, // ✅ Critical: map created_at to addedDate
+  addedDate: acc.created_at,
   userId: acc.user_id,
   isActive: acc.is_active
 });
@@ -41,11 +41,14 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   const [formError, setFormError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // 👇 NEW: Sprint 3 modal states
   const [showEventLogModal, setShowEventLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const isAdmin = currentUser.role === 'Administrator';
+  // Roles allowed to view logs and use email
+  const authorizedRoles = ['Administrator', 'Manager', 'Accountant'];
+  const canViewLogs = authorizedRoles.includes(currentUser?.role);
+  const canEmail = authorizedRoles.includes(currentUser?.role);
+  const isAdmin = currentUser?.role === 'Administrator';
 
   // Fetch accounts
   useEffect(() => {
@@ -74,7 +77,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     };
 
     fetchAccounts();
-  }, [currentUser.id]);
+  }, [currentUser?.id]);
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -127,14 +130,35 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     setIsAddModalOpen(false);
 
     try {
-      const response = await fetch(`http://localhost:5000/chart-of-accounts/${currentUser.id}`);
-      const data = await response.json();
+      const response = await fetch('http://localhost:5000/CreateChartOfAccount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          account_name: newAccountData.name,
+          account_number: newAccountData.number,
+          account_description: newAccountData.description,
+          normal_side: newAccountData.normalSide.toLowerCase(),
+          category: newAccountData.category,
+          subcategory: newAccountData.subcategory,
+          initial_balance: parseFloat(newAccountData.initialBalance) || 0,
+          order_number: parseInt(newAccountData.order) || 0,
+          statement: newAccountData.statement,
+          comment: newAccountData.comment || '',
+          is_active: true,
+        })
+      });
 
-      if (response.ok && data.accounts) {
-        setAccounts(data.accounts.map(mapAccount));
+      if (!response.ok) throw new Error('Failed to create account');
+
+      const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+      const refreshData = await refreshResponse.json();
+      if (refreshResponse.ok && refreshData.accounts) {
+        setAccounts(refreshData.accounts.map(mapAccount));
       }
     } catch (error) {
-      console.error('Error refreshing accounts:', error);
+      console.error('Error adding account:', error);
+      setFormError(error.message || 'Failed to add account.');
     }
   };
 
@@ -143,63 +167,47 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
       setFormError('Account ID is missing. Cannot save changes.');
       return;
     }
-
     setFormError('');
 
-    const payload = {
-      account_name: formData.name,
-      account_number: formData.number,
-      account_description: formData.description,
-      normal_side: formData.normalSide.toLowerCase(),
-      category: formData.category,
-      subcategory: formData.subcategory,
-      initial_balance: formData.initialBalance ? parseFloat(formData.initialBalance) : 0,
-      order_number: formData.order ? parseInt(formData.order, 10) : 0,
-      statement: formData.statement,
-      comment: formData.comment,
-      is_active: selectedAccount.isActive,
-      addedDate: formData.addedDate // ✅ Include date
-    };
-
     try {
+      const apiPayload = {
+        user_id: currentUser.id,
+        account_name: formData.name,
+        account_number: formData.number,
+        account_description: formData.description,
+        normal_side: formData.normalSide.toLowerCase(),
+        category: formData.category,
+        subcategory: formData.subcategory,
+        initial_balance: parseFloat(formData.initialBalance) || 0,
+        order_number: parseInt(formData.order) || 0,
+        statement: formData.statement,
+        comment: formData.comment || '',
+        is_active: selectedAccount.isActive
+      };
+
       const response = await fetch(`http://localhost:5000/chart-of-accounts/${selectedAccount.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(apiPayload)
       });
 
-      const result = await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update account');
+        throw new Error(data.error || 'Failed to update account');
       }
 
       const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
       const refreshData = await refreshResponse.json();
-      
       if (refreshResponse.ok && refreshData.accounts) {
         setAccounts(refreshData.accounts.map(mapAccount));
       }
 
       closeAccountModal();
-    } catch (err) {
-      console.error('Update error:', err);
-      setFormError(err.message || 'An error occurred while updating the account.');
+    } catch (error) {
+      console.error('Error updating account:', error);
+      setFormError(error.message);
     }
-  };
-
-  const handleAttemptDelete = () => {
-    if (selectedAccount && selectedAccount.balance !== 0) {
-      setFormError("Cannot delete an account with a non-zero balance.");
-    } else {
-      setFormError('');
-      setModalView('delete');
-    }
-  };
-
-  const handleDeleteAccount = (accountNumber) => {
-    setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
-    closeAccountModal();
   };
 
   const handleToggleActiveStatus = async (account, e) => {
@@ -250,11 +258,32 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     setFormError('');
   };
 
-  // 👇 NEW: Handlers for Sprint 3
   const handleOpenEventLog = (account, e) => {
     e.stopPropagation();
     setSelectedAccount(account);
     setShowEventLogModal(true);
+  };
+
+  const handleOpenEmail = () => {
+    // Only open modal if an account is selected (from header button)
+    // But in this usage, we don't pre-select — so we'll let the modal handle account selection
+    // Alternatively, you could disable the button if no account is selected, but per your design,
+    // it's likely that the Email modal will let the user choose an account.
+    setShowEmailModal(true);
+  };
+
+  const handleAttemptDelete = () => {
+    if (selectedAccount && selectedAccount.balance !== 0) {
+      setFormError("Cannot delete an account with a non-zero balance.");
+    } else {
+      setFormError('');
+      setModalView('delete');
+    }
+  };
+
+  const handleDeleteAccount = (accountNumber) => {
+    setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
+    closeAccountModal();
   };
 
   // Filtering logic
@@ -267,7 +296,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
       if (balanceFilter === 'all') return true;
       if (balanceFilter === '0') return acc.balance === 0;
       if (balanceFilter === '100000+') return acc.balance >= 100000;
-
       const [min, max] = balanceFilter.split('-').map(Number);
       if (min === 0) return acc.balance > min && acc.balance <= max;
       return acc.balance >= min && acc.balance < max;
@@ -302,7 +330,10 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       {/* ===== MODALS ===== */}
-      {/* Account Details Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
+        <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
+      </Modal>
+
       {selectedAccount && !showEventLogModal && !showEmailModal && (
         <Modal
           isOpen={true}
@@ -343,7 +374,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
         </Modal>
       )}
 
-      {/* Event Log Modal */}
       {showEventLogModal && selectedAccount && (
         <AccountEventLogModal
           account={selectedAccount}
@@ -353,7 +383,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
         />
       )}
 
-      {/* Email Modal */}
       {showEmailModal && (
         <EmailFromAccountModal
           isOpen={showEmailModal}
@@ -361,11 +390,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
           currentUser={currentUser}
         />
       )}
-
-      {/* Add Account Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
-        <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
-      </Modal>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-4">
@@ -378,22 +402,23 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="px-4 py-2 border rounded-lg"
           />
+          {canEmail && (
+            <button
+              onClick={handleOpenEmail}
+              className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+            >
+              Email
+            </button>
+          )}
           {isAdmin && (
-            <>
-              <button
-                onClick={() => setShowEmailModal(true)}
-                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-              >
-                Email
-              </button>
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"
-              >
-                <IconPlusCircle />
-                <span>Add New Account</span>
-              </button>
-            </>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              title="Add a new account to the chart"
+              className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"
+            >
+              <IconPlusCircle />
+              <span>Add New Account</span>
+            </button>
           )}
         </div>
       </div>
@@ -489,7 +514,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
                         >
                           {acc.isActive ? 'Deactivate' : 'Activate'}
                         </button>
-                        {isAdmin && (
+                        {canViewLogs && (
                           <button
                             onClick={(e) => handleOpenEventLog(acc, e)}
                             className="text-sm text-purple-600 hover:underline"
@@ -497,6 +522,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
                             View Logs
                           </button>
                         )}
+                        {/* ❌ Email button REMOVED from here */}
                       </div>
                     </td>
                     <td className="p-3 text-right">
