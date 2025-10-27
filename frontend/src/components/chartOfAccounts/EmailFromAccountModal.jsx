@@ -4,25 +4,58 @@ import Modal from '../ui/Modal';
 import EmailForm from '../userManagement/EmailForm';
 
 const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
-  const [toRole, setToRole] = useState('Manager');
+  const [toRole, setToRole] = useState('');
+  const [availableRoles, setAvailableRoles] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [view, setView] = useState('select'); // 'select' or 'compose'
 
   useEffect(() => {
+    if (!currentUser || !currentUser.role) {
+      setAvailableRoles([]);
+      setToRole('');
+      return;
+    }
+
+    const role = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1).toLowerCase();
+
+    if (role === 'Admin') {
+      setAvailableRoles(['Manager', 'Accountant']);
+      setToRole('Manager'); // must match DB casing
+    } else if (role === 'Accountant') {
+      setAvailableRoles(['Manager', 'Admin']);
+      setToRole('Manager');
+    } else if (role === 'Manager') {
+      setAvailableRoles(['Admin']);
+      setToRole('Admin');
+    } else {
+      setAvailableRoles([]);
+      setToRole('');
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
     if (!isOpen) {
-      // Reset when modal closes
       setView('select');
       setSelectedUser(null);
       return;
     }
 
     if (view === 'select') {
+      if (!toRole) {
+        setLoadingUsers(false);
+        setUsers([]);
+        return;
+      }
+
       const fetchUsersByRole = async () => {
         setLoadingUsers(true);
         try {
-          const response = await fetch(`http://localhost:5000/users?role=${toRole}`);
+          const response = await fetch(`http://localhost:5000/users?role=${encodeURIComponent(toRole)}`);
+          if (!response.ok) {
+            throw new Error(`Failed to load users: ${response.status} ${response.statusText}`);
+          }
           const data = await response.json();
           const validUsers = (data.users || []).filter(u => u.email);
           setUsers(validUsers);
@@ -41,7 +74,7 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
 
   const handleSelectRecipient = (user) => {
     setSelectedUser(user);
-    setView('compose'); // Go to email form
+    setView('compose');
   };
 
   if (!isOpen) return null;
@@ -54,27 +87,35 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
         setView('select');
         setSelectedUser(null);
       }}
-      title={view === 'select' ? "Select Recipient" : "Send Email to Team"}
+      title={view === 'select' ? 'Select Recipient' : 'Send Email to Team'}
     >
       {view === 'select' ? (
-        // STEP 1: Select recipient
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Send to:
             </label>
-            <select
-              value={toRole}
-              onChange={(e) => setToRole(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Manager">Manager</option>
-              <option value="Accountant">Accountant</option>
-            </select>
+            {availableRoles.length === 0 ? (
+              <p className="text-sm text-gray-500">Loading recipient options...</p>
+            ) : (
+              <select
+                value={toRole}
+                onChange={(e) => setToRole(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {loadingUsers ? (
             <p className="text-gray-500">Loading users...</p>
+          ) : !toRole ? (
+            <p className="text-gray-500">Select a role to load users.</p>
           ) : users.length === 0 ? (
             <p className="text-gray-500">No {toRole}s found.</p>
           ) : (
@@ -98,15 +139,15 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
           )}
         </div>
       ) : (
-        // STEP 2: Compose email
         <div className="space-y-4">
-          {/* Recipient Info */}
           <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-700">Recipient</p>
-                <p className="text-sm">{selectedUser.first_name} {selectedUser.last_name}</p>
-                <p className="text-xs text-gray-500">{selectedUser.email}</p>
+                <p className="text-sm">
+                  {selectedUser?.first_name} {selectedUser?.last_name}
+                </p>
+                <p className="text-xs text-gray-500">{selectedUser?.email}</p>
               </div>
               <button
                 type="button"
@@ -118,11 +159,7 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
             </div>
           </div>
 
-          {/* Email Form */}
-          <EmailForm
-            user={selectedUser}
-            close={onClose}
-          />
+          <EmailForm user={selectedUser} close={onClose} />
         </div>
       )}
     </Modal>
