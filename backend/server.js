@@ -35,9 +35,23 @@ app.get('/ping', (req, res) => {
 });
 
 app.get('/users', async (req, res) => {
-  const { data, error } = await supabase.from('users').select('*');
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: 'Connected to Supabase!', users: data });
+  let query = supabase.from('users').select('*');
+
+  const { role } = req.query;
+  if (role) {
+    query = query.eq('role', role);
+  }
+
+  try {
+    const { data, error } = await query;
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ message: 'Users fetched successfully', users: data });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error while fetching users.' });
+  }
 });
 
 app.post('/CreateUser', async (req, res) => {
@@ -657,7 +671,7 @@ app.post('/CreateChartOfAccount', async (req, res) => {
   res.status(201).json({ message: 'Chart of Account created successfully', account: data[0] });
 });
 
-// ✅ FIXED: Use account_id in WHERE clause
+// Use account_id in WHERE clause
 app.put('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
   const {
@@ -671,7 +685,8 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
     order_number,
     statement,
     comment,
-    is_active
+    is_active,
+    addedDate  
   } = req.body;
 
   if (!accountId) {
@@ -679,7 +694,6 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
   }
 
   try {
-    // ✅ Query by account_id
     const { data: beforeData, error: fetchError } = await supabase
       .from('chart_of_accounts')
       .select('*')
@@ -703,9 +717,13 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
     if (comment !== undefined) updateData.comment = comment;
     if (is_active !== undefined) updateData.is_active = is_active;
 
+    if (addedDate !== undefined) {
+      updateData.created_at = addedDate;
+    }
+
     if (normal_side !== undefined || initial_balance !== undefined) {
-      const newNormalSide = normal_side !== undefined ? normal_side : beforeData.normal_side;
-      const newInitialBalance = initial_balance !== undefined ? initial_balance : beforeData.initial_balance;
+      const newNormalSide = normal_side !== undefined ? normal_side : (beforeData?.normal_side || 'debit');
+      const newInitialBalance = initial_balance !== undefined ? initial_balance : (beforeData?.initial_balance || 0);
 
       if (newNormalSide === "debit") {
         updateData.debit = newInitialBalance;
@@ -718,7 +736,6 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
       }
     }
 
-    // ✅ Update by account_id
     const { data: updatedAccount, error: updateError } = await supabase
       .from('chart_of_accounts')
       .update(updateData)
@@ -727,6 +744,7 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
       .single();
 
     if (updateError) {
+      console.error('Supabase update error:', updateError); // 🔍 DEBUG
       return res.status(500).json({ error: 'Failed to update account: ' + updateError.message });
     }
 
@@ -737,7 +755,7 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
       beforeData.user_id
     );
     if (!logResult.success) {
-      console.error('Failed to log account update event:', logResult.error);
+      console.error('Log update failed:', logResult.error);
     }
 
     return res.json({
@@ -746,12 +764,11 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Update account error:', err);
+    console.error('Update account error:', err); // 🔍 THIS IS YOUR CLUE
     return res.status(500).json({ error: 'Server error occurred while updating account.' });
   }
 });
 
-// ✅ FIXED: Delete by account_id
 app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   const { accountId } = req.params;
 
@@ -760,7 +777,6 @@ app.delete('/chart-of-accounts/:accountId', async (req, res) => {
   }
 
   try {
-    // ✅ Query by account_id
     const { data: beforeData, error: fetchError } = await supabase
       .from('chart_of_accounts')
       .select('*')
@@ -771,7 +787,6 @@ app.delete('/chart-of-accounts/:accountId', async (req, res) => {
       return res.status(404).json({ error: 'Account not found.' });
     }
 
-    // ✅ Delete by account_id
     const { error: deleteError } = await supabase
       .from('chart_of_accounts')
       .delete()
@@ -893,31 +908,52 @@ app.get('/api/accounts/:accountId/event-logs', async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
+    // Fetch logs
+    const { data: logs, error } = await supabase
       .from('event_log')
       .select('*')
       .eq('table_name', 'chart_of_accounts')
-      .eq('record_id', accountId) // record_id = account_id
+      .eq('record_id', accountId)
       .order('event_time', { ascending: false });
 
     if (error) {
-      console.error('Supabase error fetching event logs:', error);
       return res.status(500).json({ error: 'Failed to fetch event logs.' });
     }
 
-    const parsedLogs = data.map(log => ({
+    // Extract unique user IDs
+    const userIds = [...new Set(logs.map(log => log.user_id))];
+
+    // Fetch user roles
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .in('id', userIds);
+
+    if (userError) {
+      console.error('Error fetching user roles:', userError);
+    }
+
+    // Create user role map
+    const userRoleMap = {};
+    (users || []).forEach(user => {
+      userRoleMap[user.id] = user.role;
+    });
+
+    // Enrich logs with user roles and parsed images
+    const enrichedLogs = logs.map(log => ({
       ...log,
       before_image: log.before_image ? JSON.parse(log.before_image) : null,
-      after_image: log.after_image ? JSON.parse(log.after_image) : null
+      after_image: log.after_image ? JSON.parse(log.after_image) : null,
+      user_role: userRoleMap[log.user_id] || 'Unknown'
     }));
 
     return res.json({
       success: true,
-      eventLogs: parsedLogs
+      eventLogs: enrichedLogs
     });
 
   } catch (err) {
-    console.error('Unexpected error in /api/accounts/:accountId/event-logs:', err);
+    console.error('Error in event logs route:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

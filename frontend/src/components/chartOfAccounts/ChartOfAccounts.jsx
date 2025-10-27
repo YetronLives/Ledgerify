@@ -13,7 +13,7 @@ import EmailFromAccountModal from './EmailFromAccountModal.jsx';
 
 // Helper to map account data consistently
 const mapAccount = (acc) => ({
-  id: acc.account_id,        // 👈 THIS IS THE FIX
+  id: acc.account_id,
   number: acc.account_number,
   name: acc.account_name,
   description: acc.account_description,
@@ -27,7 +27,7 @@ const mapAccount = (acc) => ({
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
-  addedDate: acc.created_at,
+  addedDate: acc.created_at, // ✅ Critical: map created_at to addedDate
   userId: acc.user_id,
   isActive: acc.is_active
 });
@@ -131,7 +131,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
       const data = await response.json();
 
       if (response.ok && data.accounts) {
-        setAccounts(data.accounts.map(mapAccount)); // ✅ Now includes id
+        setAccounts(data.accounts.map(mapAccount));
       }
     } catch (error) {
       console.error('Error refreshing accounts:', error);
@@ -141,7 +141,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   const handleUpdateAccount = async (formData) => {
     if (!selectedAccount?.id) {
       setFormError('Account ID is missing. Cannot save changes.');
-      console.error('selectedAccount:', selectedAccount);
       return;
     }
 
@@ -158,7 +157,8 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
       order_number: formData.order ? parseInt(formData.order, 10) : 0,
       statement: formData.statement,
       comment: formData.comment,
-      is_active: selectedAccount.isActive
+      is_active: selectedAccount.isActive,
+      addedDate: formData.addedDate // ✅ Include date
     };
 
     try {
@@ -174,7 +174,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
         throw new Error(result.error || 'Failed to update account');
       }
 
-      // Refresh accounts
       const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
       const refreshData = await refreshResponse.json();
       
@@ -208,14 +207,12 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     const newActiveStatus = !account.isActive;
 
     try {
-      // ❗ Use account.id, not account.number
       const response = await fetch(`http://localhost:5000/chart-of-accounts/${account.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           user_id: currentUser.id, 
           is_active: newActiveStatus,
-          // Include other required fields to avoid partial update
           account_name: account.name,
           account_number: account.number,
           normal_side: account.normalSide.toLowerCase(),
@@ -244,8 +241,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
   };
 
   const openAccountModal = (account) => {
-    console.log('Opening account modal. Full account object:', account);
-    console.log('Account ID:', account.id);
     setSelectedAccount(account);
     setModalView('view');
   };
@@ -260,12 +255,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
     e.stopPropagation();
     setSelectedAccount(account);
     setShowEventLogModal(true);
-  };
-
-  const handleOpenEmail = (account, e) => {
-    e.stopPropagation();
-    setSelectedAccount(account);
-    setShowEmailModal(true);
   };
 
   // Filtering logic
@@ -312,50 +301,49 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      {/* Existing Modals */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
-        <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
-      </Modal>
+      {/* ===== MODALS ===== */}
+      {/* Account Details Modal */}
+      {selectedAccount && !showEventLogModal && !showEmailModal && (
+        <Modal
+          isOpen={true}
+          onClose={closeAccountModal}
+          title={
+            modalView === 'edit'
+              ? `Edit Account: ${selectedAccount?.name}`
+              : modalView === 'delete'
+              ? 'Confirm Deletion'
+              : 'Account Details'
+          }
+        >
+          {modalView === 'view' && (
+            <AccountDetails
+              account={selectedAccount}
+              onEdit={() => setModalView('edit')}
+              onAttemptDelete={handleAttemptDelete}
+              onViewLedger={handleViewLedger}
+              error={formError}
+              isAdmin={isAdmin}
+            />
+          )}
+          {modalView === 'edit' && (
+            <EditAccountForm
+              account={selectedAccount}
+              onUpdate={handleUpdateAccount}
+              onCancel={() => setModalView('view')}
+              error={formError}
+            />
+          )}
+          {modalView === 'delete' && (
+            <DeleteConfirmation
+              accountName={selectedAccount.name}
+              onConfirm={() => handleDeleteAccount(selectedAccount.number)}
+              onCancel={() => setModalView('view')}
+            />
+          )}
+        </Modal>
+      )}
 
-      <Modal
-        isOpen={!!selectedAccount && !showEventLogModal && !showEmailModal}
-        onClose={closeAccountModal}
-        title={
-          modalView === 'edit'
-            ? `Edit Account: ${selectedAccount?.name}`
-            : modalView === 'delete'
-            ? 'Confirm Deletion'
-            : 'Account Details'
-        }
-      >
-        {selectedAccount && modalView === 'view' && (
-          <AccountDetails
-            account={selectedAccount}
-            onEdit={() => setModalView('edit')}
-            onAttemptDelete={handleAttemptDelete}
-            onViewLedger={handleViewLedger}
-            error={formError}
-            isAdmin={isAdmin}
-          />
-        )}
-        {selectedAccount && modalView === 'edit' && (
-          <EditAccountForm
-            account={selectedAccount}
-            onUpdate={handleUpdateAccount}
-            onCancel={() => setModalView('view')}
-            error={formError}
-          />
-        )}
-        {selectedAccount && modalView === 'delete' && (
-          <DeleteConfirmation
-            accountName={selectedAccount.name}
-            onConfirm={() => handleDeleteAccount(selectedAccount.number)}
-            onCancel={() => setModalView('view')}
-          />
-        )}
-      </Modal>
-
-      {/* 👇 NEW: Sprint 3 Modals */}
+      {/* Event Log Modal */}
       {showEventLogModal && selectedAccount && (
         <AccountEventLogModal
           account={selectedAccount}
@@ -365,13 +353,19 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
         />
       )}
 
-      {showEmailModal && selectedAccount && (
+      {/* Email Modal */}
+      {showEmailModal && (
         <EmailFromAccountModal
-          account={selectedAccount}
           isOpen={showEmailModal}
           onClose={() => setShowEmailModal(false)}
+          currentUser={currentUser}
         />
       )}
+
+      {/* Add Account Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
+        <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
+      </Modal>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-4">
@@ -385,14 +379,21 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
             className="px-4 py-2 border rounded-lg"
           />
           {isAdmin && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              title="Add a new account to the chart"
-              className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"
-            >
-              <IconPlusCircle />
-              <span>Add New Account</span>
-            </button>
+            <>
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+              >
+                Email
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"
+              >
+                <IconPlusCircle />
+                <span>Add New Account</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -468,7 +469,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
               <tbody>
                 {filteredAccounts.map((acc) => (
                   <tr
-                    key={acc.id} // ✅ Use id as key (more stable)
+                    key={acc.id}
                     className="border-b hover:bg-gray-50 cursor-pointer"
                     onClick={() => openAccountModal(acc)}
                   >
@@ -489,20 +490,12 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccount }) {
                           {acc.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         {isAdmin && (
-                          <>
-                            <button
-                              onClick={(e) => handleOpenEventLog(acc, e)}
-                              className="text-sm text-purple-600 hover:underline"
-                            >
-                              View Logs
-                            </button>
-                            <button
-                              onClick={(e) => handleOpenEmail(acc, e)}
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              Email
-                            </button>
-                          </>
+                          <button
+                            onClick={(e) => handleOpenEventLog(acc, e)}
+                            className="text-sm text-purple-600 hover:underline"
+                          >
+                            View Logs
+                          </button>
                         )}
                       </div>
                     </td>

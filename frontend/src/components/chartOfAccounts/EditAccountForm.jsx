@@ -3,53 +3,80 @@ import React, { useRef, useState } from 'react';
 import DateInput from '../ui/DateInput';
 
 function EditAccountForm({ account, onUpdate, onCancel, error }) {
-  const [creationDate, setCreationDate] = useState(() => {
-    return account.addedDate ? new Date(account.addedDate) : new Date();
-  });
+  // Initialize date from account's addedDate (or today if missing)
+  const initialDate = account.addedDate 
+    ? new Date(account.addedDate) 
+    : new Date();
+
+  const [creationDate, setCreationDate] = useState(initialDate);
   const formRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(formRef.current);
     const updatedAccountData = Object.fromEntries(formData.entries());
+    
+    // Include the date in the payload as ISO string
+    updatedAccountData.addedDate = creationDate.toISOString();
+
     onUpdate(updatedAccountData);
+  };
+
+  // Handle date change with debug log
+  const handleDateChange = (newDate) => {
+    setCreationDate(newDate);
   };
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-3 max-h-[70vh] overflow-y-auto pr-4">
+      {/* Date Input - now properly integrated */}
       <div>
         <DateInput
           label="Creation Date"
           value={creationDate}
-          onChange={setCreationDate}
+          onChange={handleDateChange}
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Account Name</label>
-          <input name="name" defaultValue={account.name} required className="w-full px-3 py-2 border rounded-lg"/>
+          <input 
+            name="name" 
+            defaultValue={account.name} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg"
+          />
         </div>
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Account Number</label>
-          {/* 👇 CHANGED: disabled → readOnly */}
           <input 
             name="number" 
             type="text" 
             defaultValue={account.number} 
-            readOnly 
+            readOnly
             className="w-full px-3 py-2 border rounded-lg bg-gray-100"
           />
         </div>
       </div>
       <div>
         <label className="block text-gray-600 mb-1 text-sm">Description</label>
-        <textarea name="description" defaultValue={account.description} required className="w-full px-3 py-2 border rounded-lg h-20"></textarea>
+        <textarea 
+          name="description" 
+          defaultValue={account.description} 
+          required 
+          className="w-full px-3 py-2 border rounded-lg h-20"
+        ></textarea>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Category</label>
-          <select name="category" defaultValue={account.category} required className="w-full px-3 py-2 border rounded-lg bg-white">
+          <select 
+            name="category" 
+            defaultValue={account.category} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg bg-white"
+          >
             <option>Assets</option>
             <option>Liabilities</option>
             <option>Equity</option>
@@ -59,30 +86,59 @@ function EditAccountForm({ account, onUpdate, onCancel, error }) {
         </div>
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Subcategory</label>
-          <input name="subcategory" defaultValue={account.subcategory} required className="w-full px-3 py-2 border rounded-lg"/>
+          <input 
+            name="subcategory" 
+            defaultValue={account.subcategory} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg"
+          />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Normal Side</label>
-          <select name="normalSide" defaultValue={account.normalSide} required className="w-full px-3 py-2 border rounded-lg bg-white">
+          <select 
+            name="normalSide" 
+            defaultValue={account.normalSide} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg bg-white"
+          >
             <option>Debit</option>
             <option>Credit</option>
           </select>
         </div>
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Initial Balance</label>
-          <input name="initialBalance" type="number" step="0.01" defaultValue={account.initialBalance} required className="w-full px-3 py-2 border rounded-lg"/>
+          <input 
+            name="initialBalance" 
+            type="number" 
+            step="0.01" 
+            defaultValue={account.initialBalance} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg"
+          />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Order</label>
-          <input name="order" type="number" defaultValue={account.order} placeholder="e.g., 1" required className="w-full px-3 py-2 border rounded-lg"/>
+          <input 
+            name="order" 
+            type="number" 
+            defaultValue={account.order} 
+            placeholder="e.g., 1" 
+            required 
+            className="w-full px-3 py-2 border rounded-lg"
+          />
         </div>
         <div>
           <label className="block text-gray-600 mb-1 text-sm">Statement</label>
-          <select name="statement" defaultValue={account.statement} required className="w-full px-3 py-2 border rounded-lg bg-white">
+          <select 
+            name="statement" 
+            defaultValue={account.statement} 
+            required 
+            className="w-full px-3 py-2 border rounded-lg bg-white"
+          >
             <option value="BS">Balance Sheet (BS)</option>
             <option value="IS">Income Statement (IS)</option>
             <option value="RE">Retained Earnings (RE)</option>
@@ -91,7 +147,11 @@ function EditAccountForm({ account, onUpdate, onCancel, error }) {
       </div>
       <div>
         <label className="block text-gray-600 mb-1 text-sm">Comment</label>
-        <input name="comment" defaultValue={account.comment} className="w-full px-3 py-2 border rounded-lg"/>
+        <input 
+          name="comment" 
+          defaultValue={account.comment} 
+          className="w-full px-3 py-2 border rounded-lg"
+        />
       </div>
       {error && <div className="text-red-600 text-sm text-center mt-2">{error}</div>}
       <div className="flex justify-end space-x-2 pt-4">
