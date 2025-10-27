@@ -7,6 +7,7 @@ import UserManagement from './components/userManagement/UserManagement';
 import PlaceholderScreen from './components/ui/PlaceholderScreen';
 import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger';
+import JournalEntriesPage from './components/journalEntries/JournalEntries';
 import { IconLogo, IconUser } from './components/ui/Icons';
 import UserHome from './components/UserHome';
 import Profile from './components/Profile';
@@ -33,6 +34,9 @@ const generateTemporaryPassword = (length = 10) => {
     return password;
 };
 
+const mapAccountData = (acc) => ({
+    id: acc.account_id, number: acc.account_number, name: acc.account_name, description: acc.account_description, normalSide: acc.normal_side.charAt(0).toUpperCase() + acc.normal_side.slice(1), category: acc.category, subcategory: acc.subcategory, initialBalance: acc.initial_balance, balance: acc.balance, debit: acc.debit, credit: acc.credit, order: acc.order_number, statement: acc.statement, comment: acc.comment, addedDate: acc.created_at, userId: acc.user_id, isActive: acc.is_active
+});
 
 function App() {
 
@@ -41,19 +45,17 @@ function App() {
     const uniqueId = useId();
 
     // State
-    //const [users, setUsers] = useState(mockUsers);
     const [users, setUsers] = useState([]);
+    const [allAccounts, setAllAccounts] = useState([]);
+    const [journalEntries, setJournalEntries] = useState([]);
 
     useEffect(() => {
-
         fetch('http://localhost:5000/users')
-
             .then(response => response.json())
-
             .then(data => {
                 const mappedUsers = data.users.reduce((acc, user) => {
                     acc[user.username || user.email] = {
-                        email: user.email,
+                         email: user.email,
                         fullName: `${user.first_name} ${user.last_name}`,
                         firstName: user.first_name,
                         lastName: user.last_name,
@@ -70,10 +72,17 @@ function App() {
                     return acc;
                 }, {});
                 setUsers(mappedUsers);
-
             })
-
             .catch(err => console.error(err));
+
+        fetch(`http://localhost:5000/chart-of-accounts`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.accounts) {
+                    setAllAccounts(data.accounts.map(mapAccountData));
+                }
+            })
+            .catch(err => console.error("Failed to fetch accounts:", err));
 
     }, []);
 
@@ -83,14 +92,53 @@ function App() {
     const [loginView, setLoginView] = useState('login');
     const [pendingRequests, setPendingRequests] = useState([]);
     const [notification, setNotification] = useState(null);
-    const [selectedLedgerAccount, setSelectedLedgerAccount] = useState(null); // State for ledger
+    const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState(null);
+    const [selectedJournalEntryId, setSelectedJournalEntryId] = useState(null);
+
+    // ✅ Reusable function to update account balances based on a journal entry
+    const updateAccountBalances = (journalEntry) => {
+        setAllAccounts(prevAccounts => {
+            const changes = new Map();
+
+            journalEntry.debits.forEach(debit => {
+                const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
+                change.debit += debit.amount;
+                changes.set(debit.accountId, change);
+            });
+
+            journalEntry.credits.forEach(credit => {
+                const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
+                change.credit += credit.amount;
+                changes.set(credit.accountId, change);
+            });
+
+            return prevAccounts.map(acc => {
+                if (!changes.has(acc.id)) return acc;
+
+                const change = changes.get(acc.id);
+                let balanceDelta = 0;
+
+                if (change.debit > 0) {
+                    balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
+                }
+                if (change.credit > 0) {
+                    balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
+                }
+
+                return {
+                    ...acc,
+                    debit: (acc.debit || 0) + change.debit,
+                    credit: (acc.credit || 0) + change.credit,
+                    balance: (acc.balance || 0) + balanceDelta
+                };
+            });
+        });
+    };
 
     // Functions
     const onLogin = (userData) => {
-        // For backend login, we receive the complete user object
-        // Map the backend data to frontend format
         const mappedUserData = {
-            id: userData.id, // Store the user ID for API calls
+           id: userData.id,
             email: userData.email,
             role: userData.role === 'Admin' ? 'Administrator' : userData.role,
             fullName: `${userData.first_name} ${userData.last_name}`,
@@ -105,14 +153,12 @@ function App() {
             passwordExpires: userData.password_expires,
             loginAttempts: userData.login_attempts || 0
         };
-
         setUser(mappedUserData);
         setLoginView('login');
-
-        if (userData.role === 'Admin' || userData.role === 'Administrator') {
-            setPage('users'); // Admin goes to user management
+         if (userData.role === 'Admin' || userData.role === 'Administrator') {
+            setPage('users');
         } else {
-            setPage('userhome'); // Regular users go to user home
+            setPage('userhome');
         }
 
         return undefined;
@@ -121,24 +167,20 @@ function App() {
     const updateUserInApp = (username, updatedData) => {
         setUsers(prevUsers => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
 
-        // Also update the current user if they're the one being updated
         if (user && (user.username === username || user.email === username)) {
             setUser(prevUser => ({ ...prevUser, ...updatedData }));
         }
     };
 
     const addUserToApp = (newUser) => {
-        if (!newUser || typeof newUser.username !== 'string' || newUser.username.trim() === '') {
+         if (!newUser || typeof newUser.username !== 'string' || newUser.username.trim() === '') {
             console.error("CRITICAL ERROR: Attempted to add user without a valid username.", newUser);
             return;
         }
-
         const username = newUser.username.toLowerCase();
         const fullName = newUser.fullName || `${newUser.firstName} ${newUser.lastName}`;
-
-
         const newUserData = {
-            password: newUser.tempPassword || newUser.password || 'ledger1!',
+             password: newUser.tempPassword || newUser.password || 'ledger1!',
             email: newUser.email,
             fullName: fullName,
             role: newUser.role,
@@ -149,7 +191,6 @@ function App() {
             securityAnswer: newUser.securityAnswer1 || newUser.securityAnswer,
             securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
         };
-
         setUsers(prevUsers => ({ ...prevUsers, [username]: newUserData }));
         console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
@@ -167,35 +208,28 @@ function App() {
         const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         setPendingRequests(prev => [...prev, { id: requestId, ...requestData }]);
         console.log("[App] New Registration Request Added:", requestId);
-    }
-
+    };
+    
     const handleRequest = (requestId, action) => {
         setPendingRequests(prevRequests => {
             const requestIndex = prevRequests.findIndex(req => req.id === requestId);
             if (requestIndex === -1) return prevRequests;
-
             const request = prevRequests[requestIndex];
-
             if (action === 'approve') {
                 const now = new Date();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const year = String(now.getFullYear()).slice(-2);
-
                 const firstNameInitial = request.firstName.charAt(0).toLowerCase();
                 const fullLastName = request.lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const dateSuffix = month + year;
-
                 const initialBaseUsername = firstNameInitial + fullLastName + dateSuffix;
-
                 let username = initialBaseUsername;
                 let counter = 1;
                 while (users[username]) {
                     username = initialBaseUsername + counter;
                     counter++;
                 }
-
                 const tempPassword = generateTemporaryPassword();
-
                 const userToApprove = {
                     ...request,
                     username,
@@ -203,7 +237,7 @@ function App() {
                     status: 'Active'
                 };
                 addUserToApp(userToApprove);
-
+                
                 const loginLink = window.location.origin;
 
                 console.log(`[App] Approval Email SIMULATED SENT to ${request.email}`);
@@ -220,10 +254,52 @@ function App() {
             } else {
                 console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
             }
-
             return prevRequests.filter(req => req.id !== requestId);
         });
-    }
+    };
+
+    // ✅ Updated: Only auto-approve for Manager/Admin, and update balances if approved
+    const addJournalEntry = (newEntry) => {
+        const isApprover = user.role === 'Manager' || user.role === 'Administrator';
+        const entryWithStatus = {
+            ...newEntry,
+            status: isApprover ? 'Approved' : 'Pending'
+        };
+
+        setJournalEntries(prev => [...prev, entryWithStatus]);
+
+        // ✅ Update balances immediately if auto-approved
+        if (isApprover) {
+            updateAccountBalances(entryWithStatus);
+        }
+    };
+
+    // ✅ Updated: Use reusable balance updater on approval
+    const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
+        let approvedEntry = null;
+
+        setJournalEntries(prevEntries =>
+            prevEntries.map(entry => {
+                if (entry.id === entryId) {
+                    const updated = {
+                        ...entry,
+                        status: newStatus,
+                        ...(newStatus === 'Rejected' && reason ? { rejectionReason: reason } : {})
+                    };
+                    if (newStatus === 'Approved') {
+                        approvedEntry = updated;
+                    }
+                    return updated;
+                }
+                return entry;
+            })
+        );
+
+        // ✅ Update balances only on approval
+        if (newStatus === 'Approved' && approvedEntry) {
+            updateAccountBalances(approvedEntry);
+        }
+    };
 
     const logout = () => {
         setUser(null);
@@ -232,9 +308,6 @@ function App() {
         setIsMobileMenuOpen(false);
     };
 
-    // Notification clear effect removed to keep banner visible until dismissed/logout
-
-    // Render Logic
     if (!user) {
         if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
         if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} />;
@@ -251,12 +324,11 @@ function App() {
         { id: 'profile', label: 'Profile', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
         { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
     ];
-
     const allowedNavItems = navItems.filter(item => user.role && item.roles.includes(user.role));
+    const selectedLedgerAccount = allAccounts.find(acc => acc.id === selectedLedgerAccountId);
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 font-sans">
-            {/* Navigation Layout Change */}
             <header className="bg-emerald-500 text-white shadow-md z-30">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center py-3">
@@ -264,8 +336,6 @@ function App() {
                             <IconLogo className="w-8 h-8" />
                             <span className="text-xl font-bold">Ledgerify</span>
                         </div>
-
-                        {/* Desktop Navigation */}
                         <nav className="hidden md:flex items-center space-x-1">
                             {allowedNavItems.filter(item => item.id !== 'profile').map(item => (
                                 <button key={item.id} onClick={() => setPage(item.id)}
@@ -275,10 +345,8 @@ function App() {
                                 </button>
                             ))}
                         </nav>
-
-                        {/* User Info & Actions - Desktop */}
                         <div className="hidden md:flex items-center space-x-4">
-                             <button
+                            <button
                                 onClick={() => setPage('profile')}
                                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
                                 title="View your profile"
@@ -297,8 +365,6 @@ function App() {
                                 Logout
                             </button>
                         </div>
-                        
-                        {/* Mobile Menu Button */}
                         <div className="md:hidden">
                             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} title={isMobileMenuOpen ? "Close menu" : "Open menu"} className="text-white focus:outline-none p-2">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
@@ -307,11 +373,10 @@ function App() {
                     </div>
                 </div>
 
-                {/* Mobile Navigation Menu */}
                 {isMobileMenuOpen && (
                     <nav className="md:hidden bg-emerald-600 border-t border-emerald-700">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                             {allowedNavItems.map(item => (
+                            {allowedNavItems.map(item => (
                                 <button key={item.id} onClick={() => { setPage(item.id); setIsMobileMenuOpen(false); }}
                                     title={`Go to ${item.label}`}
                                     className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
@@ -327,7 +392,6 @@ function App() {
                     </nav>
                 )}
             </header>
-
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="flex justify-between items-center p-4 bg-white border-b-2 border-gray-200">
                     <h1 className="text-2xl font-semibold text-gray-800 capitalize">{page.replace(/([A-Z])/g, ' $1').trim()}</h1>
@@ -343,16 +407,15 @@ function App() {
                     )}
                     {page === 'userhome' && <UserHome user={user} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
-                    {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccount={setSelectedLedgerAccount} />}
-                    {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => setPage('accounts')} />}
-                    {page === 'journal' && <PlaceholderScreen title="Journal Entries" message="Journal Entries module under construction." />}
+                    {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
+                    {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={journalEntries} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
+                    {page === 'journal' && <JournalEntriesPage currentUser={user} allAccounts={allAccounts} journalEntries={journalEntries} addJournalEntry={addJournalEntry} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} selectedJournalEntryId={selectedJournalEntryId} setSelectedJournalEntryId={setSelectedJournalEntryId} updateJournalEntryStatus={updateJournalEntryStatus} />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
                     {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
                     {page === 'help' && (
                         <div className="help-content" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', lineHeight: 1.6, color: '#333', fontSize: '16px' }}>
                             <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '20px', color: '#2c3e50' }}>📘 Welcome to Ledgerify</h1>
-
                             <p>
                                 You’re logged in as <strong>
                                     {user?.firstName && user?.lastName
@@ -360,7 +423,6 @@ function App() {
                                         : user?.username || 'User'}
                                 </strong>. This guide walks you through Ledgerify’s core features—tailored to your role as an <strong>Administrator</strong>, <strong>Manager</strong>, or <strong>Accountant</strong>.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '32px', marginBottom: '16px', color: '#2c3e50' }}>👥 Your Role & What You Can Do</h2>
                             <p>
                                 What you see and can do in Ledgerify depends on your assigned role:
@@ -369,7 +431,6 @@ function App() {
                                 <br />
                                 – <strong>Managers</strong> and <strong>Accountants</strong> can view accounts, explore ledgers, and use tools like journalizing—but cannot add, edit, or deactivate accounts.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>📊 Working with the Chart of Accounts</h2>
                             <p>
                                 The Chart of Accounts is your central list of all financial accounts. Each entry includes:
@@ -385,17 +446,14 @@ function App() {
                             <p>
                                 All monetary values show two decimal places and use commas for thousands (e.g., $12,500.00). Note: accounts with a balance above zero cannot be deactivated—this protects your financial data integrity.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🔍 Finding an Account</h2>
                             <p>
                                 Use the search bar to look up accounts by name or number. You can also filter by category, subcategory, or statement type. Click any account to open its full ledger and see all related transactions.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🗓️ Picking Dates</h2>
                             <p>
                                 Need to enter a date? Click any date field to open the calendar—it appears in the top-left corner of your screen. Just click your date, and it’ll fill in automatically.
                             </p>
-
                             {user?.role === 'Administrator' && (
                                 <>
                                     <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🛠️ Admin-Only Tools</h2>
@@ -414,7 +472,6 @@ function App() {
                                     </p>
                                 </>
                             )}
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>💡 Quick Tips</h2>
                             <p>
                                 – Hover over any button to see a tooltip explaining what it does
