@@ -34,8 +34,22 @@ app.get('/ping', (req, res) => {
   res.json({ message: 'Server works' });
 });
 
+// updated to filter users properly on email modal in CoA
 app.get('/users', async (req, res) => {
-  const { data, error } = await supabase.from('users').select('*');
+  const { role, roles } = req.query;
+
+  let query = supabase.from('users').select('*');
+
+  if (role) {
+    query = query.eq('role', role);
+  }
+  else if (roles) {
+    const roleList = roles.split(',').map(r => r.trim().toLowerCase());
+    query = query.in('role', roleList);
+  }
+
+  const { data, error } = await query;
+
   if (error) return res.status(500).json({ error: error.message });
   res.json({ message: 'Connected to Supabase!', users: data });
 });
@@ -926,3 +940,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
