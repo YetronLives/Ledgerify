@@ -2,24 +2,39 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 
-const formatAccount = (account) => {
-  if (!account) return null;
-  return {
-    'Account Name': account.account_name,
-    'Account Number': account.account_number,
-    'Description': account.account_description,
-    'Normal Side': account.normal_side,
-    'Category': account.category,
-    'Subcategory': account.subcategory,
-    'Initial Balance': account.initial_balance,
-    'Debit': account.debit,
-    'Credit': account.credit,
-    'Balance': account.balance,
-    'Order': account.order_number,
-    'Statement': account.statement,
-    'Comment': account.comment,
-    'Active': account.is_active
-  };
+// Format field name: "account_name" → "Account Name"
+const formatFieldName = (key) => {
+  return key
+    .replace(/([A-Z])/g, ' $1') // accountName → account Name
+    .replace(/_/g, ' ')         // account_name → account name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+// Get changed fields between before and after
+const getChangedFields = (before, after) => {
+  if (!before) {
+    // INSERT: show all fields as new
+    return Object.entries(after).map(([key, value]) => ({
+      field: key,
+      oldValue: null,
+      newValue: value
+    }));
+  }
+
+  // UPDATE: show only changed fields
+  const changes = [];
+  const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  
+  allKeys.forEach(key => {
+    const oldValue = before[key];
+    const newValue = after[key];
+    if (oldValue !== newValue) {
+      changes.push({ field: key, oldValue, newValue });
+    }
+  });
+  return changes;
 };
 
 const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
@@ -44,8 +59,10 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
         throw new Error(result.error || 'Failed to load event logs');
       }
 
-      // Sort chronologically: oldest first (creation at top)
-      const sortedLogs = (result.eventLogs || []).reverse();
+      // Sort oldest first (creation at top)
+      const sortedLogs = [...(result.eventLogs || [])].sort((a, b) => 
+        new Date(a.event_time) - new Date(b.event_time)
+      );
       setEventLogs(sortedLogs);
     } catch (err) {
       console.error('Error fetching event logs:', err);
@@ -65,66 +82,56 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
         ) : error ? (
           <p className="text-red-500">{error}</p>
         ) : eventLogs.length === 0 ? (
-          <div>
-            <p className="text-gray-500 mb-3">No event logs found for this account.</p>
-            {/* Show creation info if no logs */}
-            <div className="border border-gray-200 rounded-lg p-3 bg-blue-50">
-              <p className="text-sm font-medium text-gray-700">Account Creation Info:</p>
-              <pre className="bg-white p-2 rounded text-xs mt-2 border">
-                {JSON.stringify(formatAccount(account), null, 2)}
-              </pre>
-              <p className="text-xs text-gray-500 mt-2">
-                ⚠️ This account was created before event logging was enabled.
-              </p>
-            </div>
-          </div>
+          <p className="text-gray-500">No event logs found for this account.</p>
         ) : (
-          <div className="space-y-4">
-            {eventLogs.map((log) => (
-              <div key={log.event_id} className="border-l-4 border-gray-300 pl-3 py-2">
-                {/* ✅ FIXED: Use user_id and event_time */}
-                <div className="text-sm text-gray-600 mb-2">
-                  <span className="font-medium">
-                    {new Date(log.event_time).toLocaleString()}  {/* ✅ event_time */}
-                  </span>
-                  {' — '}
-                  <span>User ID: {log.user_id}</span>  {/* ✅ user_id */}
-                  {' — '}
-                  <span className="capitalize font-semibold">{log.action_type}</span>
-                </div>
+          <div className="space-y-5">
+            {eventLogs.map((log) => {
+              const changes = getChangedFields(log.before_image, log.after_image);
+              const actionText = 
+                log.action_type === 'INSERT' ? 'Account created' :
+                log.action_type === 'UPDATE' ? 'Account updated' :
+                'Account deleted';
 
-                {log.action_type === 'INSERT' ? (
-                  <div>
-                    <p className="font-semibold text-gray-700 text-sm mb-1">Created:</p>
-                    <pre className="bg-blue-50 p-2 rounded text-gray-800 whitespace-pre-wrap border border-blue-200 text-xs">
-                      {JSON.stringify(formatAccount(log.after_image), null, 2)}
-                    </pre>
+              return (
+                <div key={log.event_id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  {/* Header: Timestamp and User Role */}
+                  <div className="text-sm text-gray-600 mb-3">
+                    <span className="font-semibold">
+                      {new Date(log.event_time).toLocaleString()}
+                    </span>
+                    {' — '}
+                    <span>User: {log.user_role || 'Unknown'}</span> {/* ✅ SHOW ROLE */}
                   </div>
-                ) : log.before_image ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <p className="font-semibold text-gray-700 mb-1">Before:</p>
-                      <pre className="bg-gray-100 p-2 rounded text-gray-800 whitespace-pre-wrap">
-                        {JSON.stringify(formatAccount(log.before_image), null, 2)}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-700 mb-1">After:</p>
-                      <pre className="bg-gray-100 p-2 rounded text-gray-800 whitespace-pre-wrap">
-                        {JSON.stringify(formatAccount(log.after_image), null, 2)}
-                      </pre>
-                    </div>
+
+                  {/* Action */}
+                  <p className="font-semibold text-gray-800 mb-3">{actionText}</p>
+
+                  {/* Changes */}
+                  <div className="text-sm space-y-1">
+                    {changes.map(({ field, oldValue, newValue }) => {
+                      const fieldName = formatFieldName(field);
+                      const oldValueStr = oldValue == null ? '(none)' : String(oldValue);
+                      const newValueStr = newValue == null ? '(none)' : String(newValue);
+
+                      return (
+                        <div key={field} className="flex">
+                          <span className="font-medium w-36 flex-shrink-0">{fieldName}:</span>
+                          {log.action_type === 'INSERT' ? (
+                            <span className="text-gray-700">{newValueStr}</span>
+                          ) : (
+                            <span className="text-gray-700">
+                              <span className="text-red-600 line-through">{oldValueStr}</span>
+                              {' → '}
+                              <span className="text-green-600">{newValueStr}</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div>
-                    <p className="font-semibold text-gray-700 mb-1">After:</p>
-                    <pre className="bg-gray-100 p-2 rounded text-gray-800 whitespace-pre-wrap text-xs">
-                      {JSON.stringify(formatAccount(log.after_image), null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

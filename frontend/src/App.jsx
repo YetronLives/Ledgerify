@@ -45,7 +45,6 @@ function App() {
     const uniqueId = useId();
 
     // State
-    //const [users, setUsers] = useState(mockUsers);
     const [users, setUsers] = useState([]);
     const [allAccounts, setAllAccounts] = useState([]);
     const [journalEntries, setJournalEntries] = useState([]);
@@ -93,14 +92,53 @@ function App() {
     const [loginView, setLoginView] = useState('login');
     const [pendingRequests, setPendingRequests] = useState([]);
     const [notification, setNotification] = useState(null);
-    const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState(null); // State for ledger ID
+    const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState(null);
     const [selectedJournalEntryId, setSelectedJournalEntryId] = useState(null);
+
+    // ✅ Reusable function to update account balances based on a journal entry
+    const updateAccountBalances = (journalEntry) => {
+        setAllAccounts(prevAccounts => {
+            const changes = new Map();
+
+            journalEntry.debits.forEach(debit => {
+                const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
+                change.debit += debit.amount;
+                changes.set(debit.accountId, change);
+            });
+
+            journalEntry.credits.forEach(credit => {
+                const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
+                change.credit += credit.amount;
+                changes.set(credit.accountId, change);
+            });
+
+            return prevAccounts.map(acc => {
+                if (!changes.has(acc.id)) return acc;
+
+                const change = changes.get(acc.id);
+                let balanceDelta = 0;
+
+                if (change.debit > 0) {
+                    balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
+                }
+                if (change.credit > 0) {
+                    balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
+                }
+
+                return {
+                    ...acc,
+                    debit: (acc.debit || 0) + change.debit,
+                    credit: (acc.credit || 0) + change.credit,
+                    balance: (acc.balance || 0) + balanceDelta
+                };
+            });
+        });
+    };
 
      // Functions
     const onLogin = (userData) => {
-        // For backend login, we receive the complete user object
-        // Map the backend data to frontend format
         const mappedUserData = {
+           id: userData.id,
            id: userData.id, // Store the user ID for API calls
             email: userData.email,
             role: userData.role === 'Admin' ? 'Administrator' : userData.role,
@@ -119,9 +157,10 @@ function App() {
         setUser(mappedUserData);
         setLoginView('login');
          if (userData.role === 'Admin' || userData.role === 'Administrator') {
+            setPage('users');
             setPage('users'); // Admin goes to user management
         } else {
-            setPage('userhome'); // Regular users go to user home
+            setPage('userhome');
         }
 
         return undefined;
@@ -130,7 +169,6 @@ function App() {
     const updateUserInApp = (username, updatedData) => {
         setUsers(prevUsers => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
 
-        // Also update the current user if they're the one being updated
         if (user && (user.username === username || user.email === username)) {
             setUser(prevUser => ({ ...prevUser, ...updatedData }));
         }
@@ -220,7 +258,50 @@ function App() {
             }
             return prevRequests.filter(req => req.id !== requestId);
         });
-    }
+    };
+
+    // ✅ Updated: Only auto-approve for Manager/Admin, and update balances if approved
+    const addJournalEntry = (newEntry) => {
+        const isApprover = user.role === 'Manager' || user.role === 'Administrator';
+        const entryWithStatus = {
+            ...newEntry,
+            status: isApprover ? 'Approved' : 'Pending'
+        };
+
+        setJournalEntries(prev => [...prev, entryWithStatus]);
+
+        // ✅ Update balances immediately if auto-approved
+        if (isApprover) {
+            updateAccountBalances(entryWithStatus);
+        }
+    };
+
+    // ✅ Updated: Use reusable balance updater on approval
+    const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
+        let approvedEntry = null;
+
+        setJournalEntries(prevEntries =>
+            prevEntries.map(entry => {
+                if (entry.id === entryId) {
+                    const updated = {
+                        ...entry,
+                        status: newStatus,
+                        ...(newStatus === 'Rejected' && reason ? { rejectionReason: reason } : {})
+                    };
+                    if (newStatus === 'Approved') {
+                        approvedEntry = updated;
+                    }
+                    return updated;
+                }
+                return entry;
+            })
+        );
+
+        // ✅ Update balances only on approval
+        if (newStatus === 'Approved' && approvedEntry) {
+            updateAccountBalances(approvedEntry);
+        }
+    };
 
     const addJournalEntry = (newEntry) => {
         // ---Assign status based on user role ---
@@ -345,9 +426,6 @@ function App() {
         setIsMobileMenuOpen(false);
     };
 
-    // Notification clear effect removed to keep banner visible until dismissed/logout
-
-    // Render Logic
     if (!user) {
         if (loginView === 'register') return <RegistrationRequestScreen setLoginView={setLoginView} securityQuestions={uniqueSecurityQuestions} />;
         if (loginView === 'forgot') return <ForgotPasswordScreen setLoginView={setLoginView} />;
@@ -369,13 +447,13 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 font-sans">
-             {/* Navigation Layout Change */}
             <header className="bg-emerald-500 text-white shadow-md z-30">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center py-3">
                         <div className="flex items-center space-x-2">
                             <IconLogo className="w-8 h-8" />
                             <span className="text-xl font-bold">Ledgerify</span>
+                        </div>
                             </div>
                         {/* Desktop Navigation */}
                         <nav className="hidden md:flex items-center space-x-1">
@@ -389,7 +467,7 @@ function App() {
                         </nav>
                          {/* User Info & Actions - Desktop */}
                         <div className="hidden md:flex items-center space-x-4">
-                             <button
+                            <button
                                 onClick={() => setPage('profile')}
                                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
                                 title="View your profile"
@@ -408,8 +486,6 @@ function App() {
                                 Logout
                             </button>
                         </div>
-                        
-                        {/* Mobile Menu Button */}
                         <div className="md:hidden">
                             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} title={isMobileMenuOpen ? "Close menu" : "Open menu"} className="text-white focus:outline-none p-2">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
@@ -420,7 +496,6 @@ function App() {
                     </div>
                 </div>
 
-                {/* Mobile Navigation Menu */}
                 {isMobileMenuOpen && (
                     <nav className="md:hidden bg-emerald-600 border-t border-emerald-700">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
@@ -464,7 +539,6 @@ function App() {
                      {page === 'help' && (
                         <div className="help-content" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', lineHeight: 1.6, color: '#333', fontSize: '16px' }}>
                             <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '20px', color: '#2c3e50' }}>📘 Welcome to Ledgerify</h1>
-
                             <p>
                                 You’re logged in as <strong>
                                     {user?.firstName && user?.lastName
@@ -472,7 +546,6 @@ function App() {
                                         : user?.username || 'User'}
                                 </strong>. This guide walks you through Ledgerify’s core features—tailored to your role as an <strong>Administrator</strong>, <strong>Manager</strong>, or <strong>Accountant</strong>.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '32px', marginBottom: '16px', color: '#2c3e50' }}>👥 Your Role & What You Can Do</h2>
                             <p>
                                 What you see and can do in Ledgerify depends on your assigned role:
@@ -481,7 +554,6 @@ function App() {
                                 <br />
                                 – <strong>Managers</strong> and <strong>Accountants</strong> can view accounts, explore ledgers, and use tools like journalizing—but cannot add, edit, or deactivate accounts.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>📊 Working with the Chart of Accounts</h2>
                             <p>
                                 The Chart of Accounts is your central list of all financial accounts. Each entry includes:
@@ -497,17 +569,14 @@ function App() {
                             <p>
                                 All monetary values show two decimal places and use commas for thousands (e.g., $12,500.00). Note: accounts with a balance above zero cannot be deactivated—this protects your financial data integrity.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🔍 Finding an Account</h2>
                             <p>
                                 Use the search bar to look up accounts by name or number. You can also filter by category, subcategory, or statement type. Click any account to open its full ledger and see all related transactions.
                             </p>
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🗓️ Picking Dates</h2>
                             <p>
                                 Need to enter a date? Click any date field to open the calendar—it appears in the top-left corner of your screen. Just click your date, and it’ll fill in automatically.
                             </p>
-
                             {user?.role === 'Administrator' && (
                                 <>
                                     <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>🛠️ Admin-Only Tools</h2>
@@ -526,7 +595,6 @@ function App() {
                                     </p>
                                 </>
                             )}
-
                             <h2 style={{ fontSize: '22px', fontWeight: '600', marginTop: '28px', marginBottom: '16px', color: '#2c3e50' }}>💡 Quick Tips</h2>
                             <p>
                                 – Hover over any button to see a tooltip explaining what it does

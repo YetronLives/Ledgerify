@@ -6,7 +6,7 @@ import EditAccountForm from './EditAccountForm.jsx';
 import AccountDetails from './AccountDetails.jsx';
 import DeleteConfirmation from './DeleteConfirmation.jsx';
 
-// 👇 NEW: Sprint 3 Admin Modals
+// 👇 Sprint 3 Modals
 import AccountEventLogModal from './AccountEventLogModal.jsx';
 import EmailFromAccountModal from './EmailFromAccountModal.jsx';
 
@@ -45,7 +45,11 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
   const [showEventLogModal, setShowEventLogModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const isAdmin = currentUser.role === 'Administrator';
+  // Roles allowed to view logs and use email
+  const authorizedRoles = ['Administrator', 'Manager', 'Accountant'];
+  const canViewLogs = authorizedRoles.includes(currentUser?.role);
+  const canEmail = authorizedRoles.includes(currentUser?.role);
+  const isAdmin = currentUser?.role === 'Administrator';
 
   useEffect(() => {
     setAccounts(allAccounts || []);
@@ -54,6 +58,8 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
     }
   }, [allAccounts]); 
 
+    fetchAccounts();
+  }, [currentUser?.id]);
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -254,9 +260,11 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
     setShowEventLogModal(true);
   };
 
-  const handleOpenEmail = (account, e) => {
-    e.stopPropagation();
-    setSelectedAccount(account);
+  const handleOpenEmail = () => {
+    // Only open modal if an account is selected (from header button)
+    // But in this usage, we don't pre-select — so we'll let the modal handle account selection
+    // Alternatively, you could disable the button if no account is selected, but per your design,
+    // it's likely that the Email modal will let the user choose an account.
     setShowEmailModal(true);
   };
 
@@ -318,47 +326,50 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
   return (
      // Existing Modals
     <div className="bg-white p-6 rounded-lg shadow-md">
+      {/* ===== MODALS ===== */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Account">
         <AddAccountForm onSubmit={handleAddAccount} onCancel={() => setIsAddModalOpen(false)} error={formError} currentUser={currentUser} />
       </Modal>
 
-      <Modal
-        isOpen={!!selectedAccount && !showEventLogModal && !showEmailModal}
-        onClose={closeAccountModal}
-        title={
-          modalView === 'edit'
-            ? `Edit Account: ${selectedAccount?.name}`
-            : modalView === 'delete'
-            ? 'Confirm Deletion'
-            : 'Account Details'
-        }
-      >
-        {selectedAccount && modalView === 'view' && (
-          <AccountDetails
-            account={selectedAccount}
-            onEdit={() => setModalView('edit')}
-            onAttemptDelete={handleAttemptDelete}
-            onViewLedger={handleViewLedger}
-            error={formError}
-            isAdmin={isAdmin}
-          />
-        )}
-        {selectedAccount && modalView === 'edit' && (
-          <EditAccountForm
-            account={selectedAccount}
-            onUpdate={handleUpdateAccount}
-            onCancel={() => setModalView('view')}
-            error={formError}
-          />
-        )}
-        {selectedAccount && modalView === 'delete' && (
-          <DeleteConfirmation
-            accountName={selectedAccount.name}
-            onConfirm={() => handleDeleteAccount(selectedAccount.number)}
-            onCancel={() => setModalView('view')}
-          />
-        )}
-      </Modal>
+      {selectedAccount && !showEventLogModal && !showEmailModal && (
+        <Modal
+          isOpen={true}
+          onClose={closeAccountModal}
+          title={
+            modalView === 'edit'
+              ? `Edit Account: ${selectedAccount?.name}`
+              : modalView === 'delete'
+              ? 'Confirm Deletion'
+              : 'Account Details'
+          }
+        >
+          {modalView === 'view' && (
+            <AccountDetails
+              account={selectedAccount}
+              onEdit={() => setModalView('edit')}
+              onAttemptDelete={handleAttemptDelete}
+              onViewLedger={handleViewLedger}
+              error={formError}
+              isAdmin={isAdmin}
+            />
+          )}
+          {modalView === 'edit' && (
+            <EditAccountForm
+              account={selectedAccount}
+              onUpdate={handleUpdateAccount}
+              onCancel={() => setModalView('view')}
+              error={formError}
+            />
+          )}
+          {modalView === 'delete' && (
+            <DeleteConfirmation
+              accountName={selectedAccount.name}
+              onConfirm={() => handleDeleteAccount(selectedAccount.number)}
+              onCancel={() => setModalView('view')}
+            />
+          )}
+        </Modal>
+      )}
 
       {/* NEW: Sprint 3 Modals */}
       {showEventLogModal && selectedAccount && (
@@ -370,11 +381,11 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
         />
       )}
 
-      {showEmailModal && selectedAccount && (
+      {showEmailModal && (
         <EmailFromAccountModal
-          account={selectedAccount}
           isOpen={showEmailModal}
           onClose={() => setShowEmailModal(false)}
+          currentUser={currentUser}
         />
       )}
 
@@ -389,6 +400,14 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
             onChange={(e) => setSearchTerm(e.target.value)}
             className="px-4 py-2 border rounded-lg"
           />
+          {canEmail && (
+            <button
+              onClick={handleOpenEmail}
+              className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+            >
+              Email
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -473,7 +492,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
               <tbody>
                 {filteredAccounts.map((acc) => (
                   <tr
-                    key={acc.id} // Use id as key (more stable)
+                    key={acc.id}
                     className="border-b hover:bg-gray-50 cursor-pointer"
                     onClick={() => openAccountModal(acc)}
                   >
@@ -493,22 +512,15 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
                         >
                           {acc.isActive ? 'Deactivate' : 'Activate'}
                         </button>
-                        {isAdmin && (
-                          <>
-                            <button
-                              onClick={(e) => handleOpenEventLog(acc, e)}
-                              className="text-sm text-purple-600 hover:underline"
-                            >
-                              View Logs
-                            </button>
-                            <button
-                              onClick={(e) => handleOpenEmail(acc, e)}
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              Email
-                            </button>
-                          </>
+                        {canViewLogs && (
+                          <button
+                            onClick={(e) => handleOpenEventLog(acc, e)}
+                            className="text-sm text-purple-600 hover:underline"
+                          >
+                            View Logs
+                          </button>
                         )}
+                        {/* ❌ Email button REMOVED from here */}
                       </div>
                     </td>
                     <td className="p-3 text-right">
