@@ -260,49 +260,6 @@ function App() {
         });
     };
 
-    // ✅ Updated: Only auto-approve for Manager/Admin, and update balances if approved
-    const addJournalEntry = (newEntry) => {
-        const isApprover = user.role === 'Manager' || user.role === 'Administrator';
-        const entryWithStatus = {
-            ...newEntry,
-            status: isApprover ? 'Approved' : 'Pending'
-        };
-
-        setJournalEntries(prev => [...prev, entryWithStatus]);
-
-        // ✅ Update balances immediately if auto-approved
-        if (isApprover) {
-            updateAccountBalances(entryWithStatus);
-        }
-    };
-
-    // ✅ Updated: Use reusable balance updater on approval
-    const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
-        let approvedEntry = null;
-
-        setJournalEntries(prevEntries =>
-            prevEntries.map(entry => {
-                if (entry.id === entryId) {
-                    const updated = {
-                        ...entry,
-                        status: newStatus,
-                        ...(newStatus === 'Rejected' && reason ? { rejectionReason: reason } : {})
-                    };
-                    if (newStatus === 'Approved') {
-                        approvedEntry = updated;
-                    }
-                    return updated;
-                }
-                return entry;
-            })
-        );
-
-        // ✅ Update balances only on approval
-        if (newStatus === 'Approved' && approvedEntry) {
-            updateAccountBalances(approvedEntry);
-        }
-    };
-
     const addJournalEntry = (newEntry) => {
         // ---Assign status based on user role ---
         const entryWithStatus = {
@@ -447,13 +404,13 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 font-sans">
+             {/* Navigation Layout Change */}
             <header className="bg-emerald-500 text-white shadow-md z-30">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center py-3">
                         <div className="flex items-center space-x-2">
                             <IconLogo className="w-8 h-8" />
                             <span className="text-xl font-bold">Ledgerify</span>
-                        </div>
                             </div>
                         {/* Desktop Navigation */}
                         <nav className="hidden md:flex items-center space-x-1">
@@ -467,7 +424,7 @@ function App() {
                         </nav>
                          {/* User Info & Actions - Desktop */}
                         <div className="hidden md:flex items-center space-x-4">
-                            <button
+                             <button
                                 onClick={() => setPage('profile')}
                                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
                                 title="View your profile"
@@ -486,6 +443,8 @@ function App() {
                                 Logout
                             </button>
                         </div>
+                        
+                        {/* Mobile Menu Button */}
                         <div className="md:hidden">
                             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} title={isMobileMenuOpen ? "Close menu" : "Open menu"} className="text-white focus:outline-none p-2">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
@@ -496,6 +455,7 @@ function App() {
                     </div>
                 </div>
 
+                {/* Mobile Navigation Menu */}
                 {isMobileMenuOpen && (
                     <nav className="md:hidden bg-emerald-600 border-t border-emerald-700">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">

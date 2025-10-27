@@ -58,9 +58,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
     }
   }, [allAccounts]); 
 
-    fetchAccounts();
-  }, [currentUser?.id]);
-
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [normalSideFilter, setNormalSideFilter] = useState('all');
