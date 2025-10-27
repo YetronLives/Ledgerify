@@ -100,7 +100,7 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
                       {new Date(log.event_time).toLocaleString()}
                     </span>
                     {' — '}
-                    <span>User: {log.user_role || 'Unknown'}</span> {/* ✅ SHOW ROLE */}
+                    <span>User: {log.user_id || 'Unknown'}</span> {/* ✅ SHOW ROLE */}
                   </div>
 
                   {/* Action */}
