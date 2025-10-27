@@ -135,10 +135,11 @@ function App() {
         });
     };
 
-    // Functions
+     // Functions
     const onLogin = (userData) => {
         const mappedUserData = {
            id: userData.id,
+           id: userData.id, // Store the user ID for API calls
             email: userData.email,
             role: userData.role === 'Admin' ? 'Administrator' : userData.role,
             fullName: `${userData.first_name} ${userData.last_name}`,
@@ -157,6 +158,7 @@ function App() {
         setLoginView('login');
          if (userData.role === 'Admin' || userData.role === 'Administrator') {
             setPage('users');
+            setPage('users'); // Admin goes to user management
         } else {
             setPage('userhome');
         }
@@ -192,7 +194,7 @@ function App() {
             securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
         };
         setUsers(prevUsers => ({ ...prevUsers, [username]: newUserData }));
-        console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
+             console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
     };
 
     const removeUserFromApp = (username) => {
@@ -258,48 +260,121 @@ function App() {
         });
     };
 
-    // ✅ Updated: Only auto-approve for Manager/Admin, and update balances if approved
     const addJournalEntry = (newEntry) => {
-        const isApprover = user.role === 'Manager' || user.role === 'Administrator';
+        // ---Assign status based on user role ---
         const entryWithStatus = {
             ...newEntry,
-            status: isApprover ? 'Approved' : 'Pending'
+            status: user.role === 'Manager' ? 'Approved' : 'Pending'
         };
-
         setJournalEntries(prev => [...prev, entryWithStatus]);
 
-        // ✅ Update balances immediately if auto-approved
-        if (isApprover) {
-            updateAccountBalances(entryWithStatus);
+        // --- Only update account balances if the entry is auto-approved ---
+        if (entryWithStatus.status !== 'Approved') {
+            // If pending, just add to list and return.
+            // Balances will be updated upon approval.
+            return;
         }
+        
+        setAllAccounts(prevAccounts => {
+            const changes = new Map();
+
+            entryWithStatus.debits.forEach(debit => {
+                const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
+                change.debit += debit.amount;
+                changes.set(debit.accountId, change);
+            });
+
+            entryWithStatus.credits.forEach(credit => {
+                const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
+                change.credit += credit.amount;
+                changes.set(credit.accountId, change);
+            });
+
+            return prevAccounts.map(acc => {
+                if (!changes.has(acc.id)) {
+                    return acc;
+                }
+
+                const change = changes.get(acc.id);
+                
+                let balanceDelta = 0;
+                if (change.debit > 0) {
+                    balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
+                }
+                if (change.credit > 0) {
+                    balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
+                }
+
+                return {
+                    ...acc,
+                    debit: acc.debit + change.debit,
+                    credit: acc.credit + change.credit,
+                    balance: acc.balance + balanceDelta
+                };
+            });
+        });
     };
 
-    // ✅ Updated: Use reusable balance updater on approval
+    // --- Function to approve/reject entries ---
     const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
-        let approvedEntry = null;
+        let entryToUpdate = null;
 
-        setJournalEntries(prevEntries =>
+        setJournalEntries(prevEntries => 
             prevEntries.map(entry => {
                 if (entry.id === entryId) {
-                    const updated = {
-                        ...entry,
-                        status: newStatus,
-                        ...(newStatus === 'Rejected' && reason ? { rejectionReason: reason } : {})
-                    };
-                    if (newStatus === 'Approved') {
-                        approvedEntry = updated;
-                    }
-                    return updated;
+                    entryToUpdate = { ...entry, status: newStatus };
+                   if (newStatus === 'Rejected' && reason) {
+                       entryToUpdate.rejectionReason = reason;
+                   }
+                    return entryToUpdate;
                 }
                 return entry;
             })
         );
 
-        // ✅ Update balances only on approval
-        if (newStatus === 'Approved' && approvedEntry) {
-            updateAccountBalances(approvedEntry);
+        // ---  Update account balances ONLY on approval ---
+        if (newStatus === 'Approved' && entryToUpdate) {
+            setAllAccounts(prevAccounts => {
+                const changes = new Map();
+
+                entryToUpdate.debits.forEach(debit => {
+                    const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
+                    change.debit += debit.amount;
+                    changes.set(debit.accountId, change);
+                });
+
+                entryToUpdate.credits.forEach(credit => {
+                    const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
+                    change.credit += credit.amount;
+                    changes.set(credit.accountId, change);
+                });
+
+                return prevAccounts.map(acc => {
+                    if (!changes.has(acc.id)) {
+                        return acc;
+                    }
+
+                    const change = changes.get(acc.id);
+                    
+                    let balanceDelta = 0;
+                    if (change.debit > 0) {
+                        balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
+                    }
+                    if (change.credit > 0) {
+                        balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
+                    }
+
+                    return {
+                        ...acc,
+                        debit: acc.debit + change.debit,
+                        credit: acc.credit + change.credit,
+                        balance: acc.balance + balanceDelta
+                    };
+                });
+            });
         }
     };
+
 
     const logout = () => {
         setUser(null);
@@ -329,13 +404,15 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 font-sans">
+             {/* Navigation Layout Change */}
             <header className="bg-emerald-500 text-white shadow-md z-30">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center py-3">
                         <div className="flex items-center space-x-2">
                             <IconLogo className="w-8 h-8" />
                             <span className="text-xl font-bold">Ledgerify</span>
-                        </div>
+                            </div>
+                        {/* Desktop Navigation */}
                         <nav className="hidden md:flex items-center space-x-1">
                             {allowedNavItems.filter(item => item.id !== 'profile').map(item => (
                                 <button key={item.id} onClick={() => setPage(item.id)}
@@ -345,8 +422,9 @@ function App() {
                                 </button>
                             ))}
                         </nav>
+                         {/* User Info & Actions - Desktop */}
                         <div className="hidden md:flex items-center space-x-4">
-                            <button
+                             <button
                                 onClick={() => setPage('profile')}
                                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-emerald-700 transition-colors duration-200"
                                 title="View your profile"
@@ -365,18 +443,23 @@ function App() {
                                 Logout
                             </button>
                         </div>
+                        
+                        {/* Mobile Menu Button */}
                         <div className="md:hidden">
                             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} title={isMobileMenuOpen ? "Close menu" : "Open menu"} className="text-white focus:outline-none p-2">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                             </button>
+
                         </div>
+
                     </div>
                 </div>
 
+                {/* Mobile Navigation Menu */}
                 {isMobileMenuOpen && (
                     <nav className="md:hidden bg-emerald-600 border-t border-emerald-700">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                            {allowedNavItems.map(item => (
+                              {allowedNavItems.map(item => (
                                 <button key={item.id} onClick={() => { setPage(item.id); setIsMobileMenuOpen(false); }}
                                     title={`Go to ${item.label}`}
                                     className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''}`}>
@@ -413,7 +496,7 @@ function App() {
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
                     {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
-                    {page === 'help' && (
+                     {page === 'help' && (
                         <div className="help-content" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', lineHeight: 1.6, color: '#333', fontSize: '16px' }}>
                             <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '20px', color: '#2c3e50' }}>📘 Welcome to Ledgerify</h1>
                             <p>
