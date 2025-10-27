@@ -455,7 +455,7 @@ function App() {
                     )}
                     {page === 'userhome' && <UserHome user={user} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
-                    {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} />}
+                    {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={journalEntries} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
                     {page === 'journal' && <JournalEntriesPage currentUser={user} allAccounts={allAccounts} journalEntries={journalEntries} addJournalEntry={addJournalEntry} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} selectedJournalEntryId={selectedJournalEntryId} setSelectedJournalEntryId={setSelectedJournalEntryId} updateJournalEntryStatus={updateJournalEntryStatus} />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}

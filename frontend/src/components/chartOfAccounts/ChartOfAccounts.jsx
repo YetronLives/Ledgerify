@@ -31,7 +31,7 @@ const mapAccount = (acc) => ({
   isActive: acc.is_active
 });
 
-function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, allAccounts }) {
+function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, allAccounts, setAllAccounts }) {
   const [accounts, setAccounts] = useState(allAccounts || []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -132,7 +132,9 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
       const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
       const refreshData = await refreshResponse.json();
       if (refreshResponse.ok && refreshData.accounts) {
-        setAccounts(refreshData.accounts.map(mapAccount));
+        const mappedAccounts = refreshData.accounts.map(mapAccount);
+        setAccounts(mappedAccounts); 
+        setAllAccounts(mappedAccounts); 
       }
 
     } catch (error) {
@@ -142,11 +144,54 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
 
   const handleUpdateAccount = async (formData) => {
     if (!selectedAccount?.id) {
-      setFormError('Account ID is missing. Cannot save changes.');
-      return;
+        setFormError('Account ID is missing. Cannot save changes.');
+        return;
     }
     setFormError('');
-  };
+
+    try {
+        const apiPayload = {
+            user_id: currentUser.id,
+            account_name: formData.name,
+            account_number: formData.number, 
+            account_description: formData.description,
+            normal_side: formData.normalSide.toLowerCase(),
+            category: formData.category,
+            subcategory: formData.subcategory,
+            initial_balance: parseFloat(formData.initialBalance) || 0,
+            order_number: parseInt(formData.order) || 0,
+            statement: formData.statement,
+            comment: formData.comment || '',
+            is_active: selectedAccount.isActive 
+        };
+
+        const response = await fetch(`http://localhost:5000/chart-of-accounts/${selectedAccount.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiPayload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to update account');
+        }
+
+        const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+        const refreshData = await refreshResponse.json();
+       if (refreshResponse.ok && refreshData.accounts) {
+        const mappedAccounts = refreshData.accounts.map(mapAccount);
+        setAccounts(mappedAccounts); 
+        setAllAccounts(mappedAccounts); 
+      }
+
+        closeAccountModal();
+
+    } catch (error) {
+        console.error('Error updating account:', error);
+        setFormError(error.message);
+    }
+};
 
 
   const handleToggleActiveStatus = async (account, e) => {
@@ -161,7 +206,6 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
         body: JSON.stringify({ 
           user_id: currentUser.id, 
           is_active: newActiveStatus,
-          // Include other required fields to avoid partial update
           account_name: account.name,
           account_number: account.number,
           normal_side: account.normalSide.toLowerCase(),
@@ -177,9 +221,13 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
       const data = await response.json();
 
       if (response.ok) {
-        setAccounts(prev => prev.map(acc =>
-          acc.id === account.id ? { ...acc, isActive: newActiveStatus } : acc
-        ));
+        const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+        const refreshData = await refreshResponse.json();
+        if (refreshResponse.ok && refreshData.accounts) {
+            const mappedAccounts = refreshData.accounts.map(mapAccount);
+            setAccounts(mappedAccounts);      
+            setAllAccounts(mappedAccounts); 
+        }
       } else {
         alert(`Failed to update account: ${data.error}`);
       }
