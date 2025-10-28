@@ -174,6 +174,39 @@ class EventLogger {
       return { success: false, error: error.message };
     }
   }
+
+  static async logJournalEntryCreation(journalEntryId, journalEntryData, createdByUserId) {
+    return await this.logEvent({
+      tableName: 'journal_entries',
+      recordId: journalEntryId,
+      userId: createdByUserId,
+      actionType: 'INSERT',
+      beforeImage: null,
+      afterImage: journalEntryData
+    });
+  }
+
+  static async logJournalEntryUpdate(journalEntryId, beforeData, afterData, updatedByUserId) {
+    return await this.logEvent({
+      tableName: 'journal_entries',
+      recordId: journalEntryId,
+      userId: updatedByUserId,
+      actionType: 'UPDATE',
+      beforeImage: beforeData,
+      afterImage: afterData
+    });
+  }
+
+  static async logJournalEntryDeletion(journalEntryId, journalEntryData, deletedByUserId) {
+    return await this.logEvent({
+      tableName: 'journal_entries',
+      recordId: journalEntryId,
+      userId: deletedByUserId,
+      actionType: 'DELETE',
+      beforeImage: journalEntryData,
+      afterImage: null
+    });
+  }
 }
 
 module.exports = EventLogger;

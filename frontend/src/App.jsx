@@ -84,6 +84,15 @@ function App() {
             })
             .catch(err => console.error("Failed to fetch accounts:", err));
 
+        fetch('http://localhost:5000/journal-entries')
+            .then(response => response.json())
+            .then(data => {
+                if (data.entries) {
+                    setJournalEntries(data.entries);
+                }
+            })
+            .catch(err => console.error("Failed to fetch journal entries:", err));
+
     }, []);
 
     const [user, setUser] = useState(null);
