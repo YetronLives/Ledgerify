@@ -156,7 +156,7 @@ function JournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, curren
     setAttachments(prev => prev.filter(file => file.name !== fileName));
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -175,18 +175,40 @@ function JournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, curren
       return;
     }
 
-    const entry = {
-      id: `JE-${Date.now()}`,
-      date: new Date().toISOString(),
-      description,
-      debits: debits.map(d => ({ accountId: d.accountId, amount: parseFloat(d.amount) })),
-      credits: credits.map(c => ({ accountId: c.accountId, amount: parseFloat(c.amount) })),
-      attachments: attachments.map(f => ({ name: f.name, size: f.size, type: f.type }))
-    };
-    onSubmit(entry);
+    try {
+      const payload = {
+        user_id: currentUser.id,
+        description,
+        debits: debits.map(d => ({ accountId: d.accountId, amount: parseFloat(d.amount) })),
+        credits: credits.map(c => ({ accountId: c.accountId, amount: parseFloat(c.amount) })),
+        attachments: attachments.map(f => ({ name: f.name, size: f.size, type: f.type }))
+      };
 
-    if (currentUser && currentUser.role === 'Accountant') {
-      alert('Your journal entry has been submitted for manager review.');
+      const response = await fetch('http://localhost:5000/journal-entries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create journal entry');
+      }
+
+      if (currentUser && currentUser.role === 'Accountant') {
+        alert('Your journal entry has been submitted for manager review.');
+      } else {
+        alert('Journal entry created successfully!');
+      }
+
+      onSubmit(data.journalEntry);
+
+    } catch (err) {
+      console.error('Error submitting journal entry:', err);
+      setError(err.message || 'Failed to submit journal entry. Please try again.');
     }
   };
 

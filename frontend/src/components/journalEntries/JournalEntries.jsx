@@ -8,7 +8,7 @@ import Modal from '../ui/Modal';
 
 function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJournalEntry, setPage, setSelectedLedgerAccountId, selectedJournalEntryId, setSelectedJournalEntryId, updateJournalEntryStatus }) {
     const [isCreating, setIsCreating] = useState(false);
-    const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' ? 'Pending' : 'Approved');
+    const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' ? 'Pending Review' : 'Approved');
     const [searchTerm, setSearchTerm] = useState('');
     const [amountFilter, setAmountFilter] = useState('');
     const [startDate, setStartDate] = useState(null);
@@ -62,7 +62,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
 
                 if (amountFilter) {
                     const amount = parseFloat(amountFilter);
-                    const hasMatchingAmount = entry.debits.some(d => d.amount === amount) || entry.credits.some(c => c.amount === amount);
+                    const hasMatchingAmount = (entry.debits || []).some(d => d.amount === amount) || (entry.credits || []).some(c => c.amount === amount);
                     if (!hasMatchingAmount) return false;
                 }
 
@@ -70,8 +70,8 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                     const lowerSearchTerm = searchTerm.toLowerCase();
                     const inDescription = entry.description?.toLowerCase().includes(lowerSearchTerm);
                     const inAccountName = 
-                        entry.debits.some(d => allAccounts.find(a => a.id == d.accountId)?.name.toLowerCase().includes(lowerSearchTerm)) ||
-                        entry.credits.some(c => allAccounts.find(a => a.id == c.accountId)?.name.toLowerCase().includes(lowerSearchTerm));
+                        (entry.debits || []).some(d => allAccounts.find(a => a.id == d.accountId)?.name.toLowerCase().includes(lowerSearchTerm)) ||
+                        (entry.credits || []).some(c => allAccounts.find(a => a.id == c.accountId)?.name.toLowerCase().includes(lowerSearchTerm));
                     if (!inDescription && !inAccountName) return false;
                 }
                 
@@ -153,7 +153,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                         <>
                             <div className="flex space-x-2 mb-4">
                                 {canCreate && ( 
-                                    <button onClick={() => setViewStatus('Pending')} className={getViewButtonClass('Pending')}>
+                                    <button onClick={() => setViewStatus('Pending Review')} className={getViewButtonClass('Pending Review')}>
                                         Pending Review
                                     </button>
                                 )}
@@ -232,7 +232,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                     <th className="p-3">Debits</th>
                                     <th className="p-3">Credits</th>
                                     <th className="p-3">Attachments</th>
-                                    {isManager && viewStatus === 'Pending' && !selectedJournalEntryId && (
+                                    {isManager && viewStatus === 'Pending Review' && !selectedJournalEntryId && (
                                         <th className="p-3">Actions</th>
                                     )}
                                 </tr>
@@ -251,7 +251,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                 )}
                                             </td>
                                             <td className="p-3 align-top">
-                                                {entry.debits.map(d => {
+                                                {(entry.debits || []).map(d => {
                                                     const acc = allAccounts.find(a => a.id == d.accountId);
                                                     return <div key={`${entry.id}-${d.accountId}-debit`} className="flex justify-between text-green-600">
                                                         {acc ? (
@@ -270,7 +270,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                 })}
                                             </td>
                                             <td className="p-3 align-top">
-                                                 {entry.credits.map(c => {
+                                                 {(entry.credits || []).map(c => {
                                                     const acc = allAccounts.find(a => a.id == c.accountId);
                                                     return <div key={`${entry.id}-${c.accountId}-credit`} className="flex justify-between text-red-600">
                                                         {acc ? (
@@ -308,7 +308,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                     <span className="text-gray-400 text-xs">None</span>
                                                 )}
                                             </td>
-                                            {isManager && viewStatus === 'Pending' && !selectedJournalEntryId && (
+                                            {isManager && viewStatus === 'Pending Review' && !selectedJournalEntryId && (
                                                 <td className="p-3 align-top">
                                                     <div className="flex space-x-2">
                                                         <button 
@@ -332,7 +332,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isManager && viewStatus === 'Pending' && !selectedJournalEntryId ? 6 : 5} className="text-center p-8 text-gray-500">
+                                        <td colSpan={isManager && viewStatus === 'Pending Review' && !selectedJournalEntryId ? 6 : 5} className="text-center p-8 text-gray-500">
                                             No journal entries match your criteria.
                                         </td>
                                     </tr>
