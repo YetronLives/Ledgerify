@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const cors = require('cors');
 const EventLogger = require('./eventLogger');
+const JEErrorLogger = require('./jeErrorLogger');
 
 const nodemailer = require('nodemailer');
 
@@ -942,6 +943,96 @@ app.get('/api/accounts/:accountId/event-logs', async (req, res) => {
   } catch (err) {
     console.error('Unexpected error in /api/accounts/:accountId/event-logs:', err);
     return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// Log Journal Entry Error
+app.post('/api/journal-entries/log-error', async (req, res) => {
+  const { user_id, error_type, error_message, entry_data, resolution_suggestion } = req.body;
+
+  if (!user_id || !error_type || !error_message) {
+    return res.status(400).json({ error: 'Missing required fields: user_id, error_type, error_message' });
+  }
+
+  try {
+    const logResult = await JEErrorLogger.logError({
+      journal_entry_id: null,
+      user_id,
+      error_type,
+      error_message,
+      entry_data,
+      resolution_suggestion
+    });
+
+    if (!logResult.success) {
+      console.error('Failed to log JE error:', logResult.error);
+      return res.status(500).json({ error: 'Failed to log error' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Error logged successfully',
+      error_log: logResult.data
+    });
+
+  } catch (err) {
+    console.error('Unexpected error logging JE error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// Get user's journal entry error logs
+app.get('/api/journal-entries/error-logs/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { limit = 100, offset = 0 } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    const result = await JEErrorLogger.getUserErrorLogs(parseInt(userId), parseInt(limit), parseInt(offset));
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({
+      message: 'Error logs fetched successfully',
+      error_logs: result.data,
+      count: result.data.length
+    });
+
+  } catch (err) {
+    console.error('Get error logs error:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching error logs.' });
+  }
+});
+
+// Get all journal entry error logs
+app.get('/api/journal-entries/error-logs', async (req, res) => {
+  const { limit = 100, offset = 0 } = req.query;
+
+  try {
+    const result = await JEErrorLogger.getAllErrorLogs(parseInt(limit), parseInt(offset));
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({
+      message: 'All error logs fetched successfully',
+      error_logs: result.data,
+      count: result.data.length,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+
+  } catch (err) {
+    console.error('Get all error logs error:', err);
+    return res.status(500).json({ error: 'Server error occurred while fetching all error logs.' });
   }
 });
 

@@ -156,22 +156,137 @@ function JournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, curren
     setAttachments(prev => prev.filter(file => file.name !== fileName));
   };
 
-  const handleFormSubmit = (e) => {
+  const validateJournalEntry = async () => {
+    const errors = [];
+    
+    // 1. Check for empty debits or credits
+    const emptyDebits = debits.filter(d => !d.accountId || !d.amount || parseFloat(d.amount) <= 0);
+    const emptyCredits = credits.filter(c => !c.accountId || !c.amount || parseFloat(c.amount) <= 0);
+    
+    if (emptyDebits.length > 0) {
+      errors.push({
+        type: 'EMPTY_DEBIT_LINES',
+        message: `Line ${debits.indexOf(emptyDebits[0]) + 1} in Debits: Please select an account and enter an amount greater than zero.`,
+        resolution: 'Select a valid account and enter an amount greater than $0.00 for all debit lines.'
+      });
+    }
+    
+    if (emptyCredits.length > 0) {
+      errors.push({
+        type: 'EMPTY_CREDIT_LINES',
+        message: `Line ${credits.indexOf(emptyCredits[0]) + 1} in Credits: Please select an account and enter an amount greater than zero.`,
+        resolution: 'Select a valid account and enter an amount greater than $0.00 for all credit lines.'
+      });
+    }
+    
+    // 2. Check for zero totals
+    if (totalDebits === 0 && totalCredits === 0) {
+      errors.push({
+        type: 'ZERO_TOTALS',
+        message: 'Both Debits and Credits totals are zero. A journal entry must have at least one transaction with an amount greater than zero.',
+        resolution: 'Add at least one debit and one credit entry with amounts greater than zero.'
+      });
+    }
+    
+    // 3. Check for unbalanced entry (debits must equal credits)
+    if (totalDebits !== totalCredits) {
+      const difference = Math.abs(totalDebits - totalCredits);
+      errors.push({
+        type: 'UNBALANCED_ENTRY',
+        message: `The journal entry is out of balance! Total Debits: $${totalDebits.toFixed(2)} | Total Credits: $${totalCredits.toFixed(2)} | Difference: $${difference.toFixed(2)}`,
+        resolution: totalDebits > totalCredits 
+          ? `Increase credits by $${difference.toFixed(2)} or decrease debits by $${difference.toFixed(2)} to balance the entry.`
+          : `Increase debits by $${difference.toFixed(2)} or decrease credits by $${difference.toFixed(2)} to balance the entry.`
+      });
+    }
+    
+    // 4. Check for invalid amounts (negative, zero, or NaN)
+    const invalidDebits = debits.filter(d => {
+      const amt = parseFloat(d.amount);
+      return !isNaN(amt) && (amt <= 0 || isNaN(amt));
+    });
+    const invalidCredits = credits.filter(c => {
+      const amt = parseFloat(c.amount);
+      return !isNaN(amt) && (amt <= 0 || isNaN(amt));
+    });
+    
+    if (invalidDebits.length > 0 || invalidCredits.length > 0) {
+      errors.push({
+        type: 'INVALID_AMOUNTS',
+        message: 'One or more entries contain invalid amounts. All amounts must be positive numbers greater than zero.',
+        resolution: 'Ensure all amounts are valid positive numbers greater than $0.00.'
+      });
+    }
+    
+    // 5. Check for duplicate account usage (optional business rule)
+    const allDebitAccounts = debits.map(d => d.accountId).filter(id => id);
+    const allCreditAccounts = credits.map(c => c.accountId).filter(id => id);
+    const duplicateDebits = allDebitAccounts.filter((id, index) => allDebitAccounts.indexOf(id) !== index);
+    const duplicateCredits = allCreditAccounts.filter((id, index) => allCreditAccounts.indexOf(id) !== index);
+    
+    // Note: This is informational, not an error in standard accounting
+    // Adding as a warning that can be logged
+    
+    // 6. Check account selection
+    const missingDebitAccounts = debits.filter(d => !d.accountId);
+    const missingCreditAccounts = credits.filter(c => !c.accountId);
+    
+    if (missingDebitAccounts.length > 0) {
+      errors.push({
+        type: 'MISSING_DEBIT_ACCOUNTS',
+        message: `${missingDebitAccounts.length} debit line(s) have no account selected.`,
+        resolution: 'Select a valid account for each debit line from the account dropdown.'
+      });
+    }
+    
+    if (missingCreditAccounts.length > 0) {
+      errors.push({
+        type: 'MISSING_CREDIT_ACCOUNTS',
+        message: `${missingCreditAccounts.length} credit line(s) have no account selected.`,
+        resolution: 'Select a valid account for each credit line from the account dropdown.'
+      });
+    }
+    
+    return errors;
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    const entryData = {
+      description,
+      debits: debits.map(d => ({ accountId: d.accountId, accountName: accounts.find(a => a.id === d.accountId)?.name, amount: parseFloat(d.amount) })),
+      credits: credits.map(c => ({ accountId: c.accountId, accountName: accounts.find(a => a.id === c.accountId)?.name, amount: parseFloat(c.amount) })),
+      attachments: attachments.map(f => ({ name: f.name, size: f.size, type: f.type }))
+    };
 
-    if (totalDebits === 0 || totalCredits === 0) {
-      setError('Debits and Credits must be greater than zero.');
-      return;
-    }
-    if (totalDebits !== totalCredits) {
-      setError('Total debits must equal total credits.');
-      return;
-    }
-
-    const isAnyFieldEmpty = [...debits, ...credits].some(item => !item.accountId || !item.amount);
-    if (isAnyFieldEmpty) {
-      setError('Please select an account and enter an amount for each line.');
+    // Validate the journal entry
+    const validationErrors = await validateJournalEntry();
+    
+    if (validationErrors.length > 0) {
+      // Log errors to database
+      try {
+        for (const error of validationErrors) {
+          await fetch('http://localhost:5000/api/journal-entries/log-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: currentUser.id,
+              error_type: error.type,
+              error_message: error.message,
+              entry_data: entryData,
+              resolution_suggestion: error.resolution
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Failed to log errors to database:', err);
+      }
+      
+      // Display first error to user
+      const primaryError = validationErrors[0];
+      setError(`${primaryError.message} ${primaryError.resolution ? `\n\nHow to fix: ${primaryError.resolution}` : ''}`);
       return;
     }
 
