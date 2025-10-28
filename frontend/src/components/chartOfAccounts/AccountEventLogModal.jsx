@@ -44,8 +44,8 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
         throw new Error(result.error || 'Failed to load event logs');
       }
 
-      // Sort chronologically: oldest first (creation at top)
-      const sortedLogs = (result.eventLogs || []).reverse();
+      // Backend returns logs sorted by newest first, use them as-is
+      const sortedLogs = result.eventLogs || [];
       setEventLogs(sortedLogs);
     } catch (err) {
       console.error('Error fetching event logs:', err);
