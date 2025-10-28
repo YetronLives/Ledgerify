@@ -294,10 +294,12 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                         {entry.attachments.map((file, index) => (
                                                             <a 
                                                                 key={index} 
-                                                                href="#" 
-                                                                onClick={(e) => e.preventDefault()} 
+                                                                href={file.url || '#'} 
+                                                                target={file.url ? '_blank' : '_self'}
+                                                                rel={file.url ? 'noopener noreferrer' : ''}
+                                                                onClick={(e) => !file.url && e.preventDefault()} 
                                                                 className="text-xs text-blue-600 hover:underline flex items-center space-x-1"
-                                                                title={`${file.name} (${(file.size / 1024).toFixed(1)} KB)`}
+                                                                title={file.url ? `Download ${file.name}` : `${file.name} (no URL)`}
                                                             >
                                                                 <IconPaperclip className="w-3 h-3 flex-shrink-0" />
                                                                 <span className="truncate max-w-xs">{file.name}</span>

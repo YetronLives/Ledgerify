@@ -270,16 +270,13 @@ function App() {
     };
 
     const addJournalEntry = (newEntry) => {
-        // ---Assign status based on user role ---
-        const entryWithStatus = {
-            ...newEntry,
-            status: user.role === 'Manager' ? 'Approved' : 'Pending'
-        };
-        setJournalEntries(prev => [...prev, entryWithStatus]);
+        // Use the status from the backend (already set correctly)
+        // Backend sets: "Pending Review" for Accountants, could be "Approved" for Managers
+        setJournalEntries(prev => [...prev, newEntry]);
 
-        // --- Only update account balances if the entry is auto-approved ---
-        if (entryWithStatus.status !== 'Approved') {
-            // If pending, just add to list and return.
+        // --- Only update account balances if the entry is approved ---
+        if (newEntry.status !== 'Approved') {
+            // If pending review, just add to list and return.
             // Balances will be updated upon approval.
             return;
         }
@@ -287,13 +284,13 @@ function App() {
         setAllAccounts(prevAccounts => {
             const changes = new Map();
 
-            entryWithStatus.debits.forEach(debit => {
+            newEntry.debits.forEach(debit => {
                 const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
                 change.debit += debit.amount;
                 changes.set(debit.accountId, change);
             });
 
-            entryWithStatus.credits.forEach(credit => {
+            newEntry.credits.forEach(credit => {
                 const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
                 change.credit += credit.amount;
                 changes.set(credit.accountId, change);
@@ -325,62 +322,86 @@ function App() {
     };
 
     // --- Function to approve/reject entries ---
-    const updateJournalEntryStatus = (entryId, newStatus, reason = null) => {
-        let entryToUpdate = null;
-
-        setJournalEntries(prevEntries => 
-            prevEntries.map(entry => {
-                if (entry.id === entryId) {
-                    entryToUpdate = { ...entry, status: newStatus };
-                   if (newStatus === 'Rejected' && reason) {
-                       entryToUpdate.rejectionReason = reason;
-                   }
-                    return entryToUpdate;
-                }
-                return entry;
-            })
-        );
-
-        // ---  Update account balances ONLY on approval ---
-        if (newStatus === 'Approved' && entryToUpdate) {
-            setAllAccounts(prevAccounts => {
-                const changes = new Map();
-
-                entryToUpdate.debits.forEach(debit => {
-                    const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
-                    change.debit += debit.amount;
-                    changes.set(debit.accountId, change);
-                });
-
-                entryToUpdate.credits.forEach(credit => {
-                    const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
-                    change.credit += credit.amount;
-                    changes.set(credit.accountId, change);
-                });
-
-                return prevAccounts.map(acc => {
-                    if (!changes.has(acc.id)) {
-                        return acc;
-                    }
-
-                    const change = changes.get(acc.id);
-                    
-                    let balanceDelta = 0;
-                    if (change.debit > 0) {
-                        balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
-                    }
-                    if (change.credit > 0) {
-                        balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
-                    }
-
-                    return {
-                        ...acc,
-                        debit: acc.debit + change.debit,
-                        credit: acc.credit + change.credit,
-                        balance: acc.balance + balanceDelta
-                    };
-                });
+    const updateJournalEntryStatus = async (entryId, newStatus, reason = null) => {
+        try {
+            // Call backend API to update status
+            const response = await fetch(`http://localhost:5000/journal-entries/${entryId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status: newStatus,
+                    rejectionReason: reason,
+                    updated_by_user_id: user.id
+                })
             });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update journal entry status');
+            }
+
+            // Update local state after successful backend update
+            let entryToUpdate = null;
+
+            setJournalEntries(prevEntries => 
+                prevEntries.map(entry => {
+                    if (entry.id === entryId) {
+                        entryToUpdate = { ...entry, status: newStatus };
+                        if (newStatus === 'Rejected' && reason) {
+                            entryToUpdate.rejectionReason = reason;
+                        }
+                        return entryToUpdate;
+                    }
+                    return entry;
+                })
+            );
+
+            // ---  Update account balances ONLY on approval ---
+            if (newStatus === 'Approved' && entryToUpdate) {
+                setAllAccounts(prevAccounts => {
+                    const changes = new Map();
+
+                    entryToUpdate.debits.forEach(debit => {
+                        const change = changes.get(debit.accountId) || { debit: 0, credit: 0 };
+                        change.debit += debit.amount;
+                        changes.set(debit.accountId, change);
+                    });
+
+                    entryToUpdate.credits.forEach(credit => {
+                        const change = changes.get(credit.accountId) || { debit: 0, credit: 0 };
+                        change.credit += credit.amount;
+                        changes.set(credit.accountId, change);
+                    });
+
+                    return prevAccounts.map(acc => {
+                        if (!changes.has(acc.id)) {
+                            return acc;
+                        }
+
+                        const change = changes.get(acc.id);
+                        
+                        let balanceDelta = 0;
+                        if (change.debit > 0) {
+                            balanceDelta += (acc.normalSide === 'Debit' ? change.debit : -change.debit);
+                        }
+                        if (change.credit > 0) {
+                            balanceDelta += (acc.normalSide === 'Credit' ? change.credit : -change.credit);
+                        }
+
+                        return {
+                            ...acc,
+                            debit: acc.debit + change.debit,
+                            credit: acc.credit + change.credit,
+                            balance: acc.balance + balanceDelta
+                        };
+                    });
+                });
+            }
+        } catch (err) {
+            console.error('Error updating journal entry status:', err);
+            alert(`Failed to ${newStatus.toLowerCase()} journal entry: ${err.message}`);
         }
     };
 

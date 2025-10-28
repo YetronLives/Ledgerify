@@ -1,10 +1,36 @@
 const { createClient } = require('@supabase/supabase-js');
 const EventLogger = require('./eventLogger');
+const multer = require('multer');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configure multer for memory storage (files stored in RAM temporarily)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'image/jpeg',
+      'image/png'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, Word, Excel, CSV, and image files are allowed.'));
+    }
+  }
+});
 
 class JournalEntriesEndpoint {
   // Create journal entry with journal lines
@@ -30,13 +56,28 @@ class JournalEntriesEndpoint {
     try {
       const created_at = new Date().toISOString();
 
+      // Get the user's role to determine if auto-approval is needed
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user_id)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user role:', userError);
+        return res.status(500).json({ error: 'Failed to fetch user information.' });
+      }
+
+      // Auto-approve for Managers, Pending Review for others
+      const status = userData.role === 'Manager' ? 'Approved' : 'Pending Review';
+
       // Step 1: Insert into journal_entries table
       const { data: journalEntry, error: journalError } = await supabase
         .from('journal_entries')
         .insert([{
           user_id,
           description: description || '',
-          status: 'Pending Review',
+          status: status,
           created_at
         }])
         .select()
@@ -82,12 +123,17 @@ class JournalEntriesEndpoint {
         }
       });
 
-      // Handle attachments - attach to the first journal line
+      // Handle attachments - distribute across journal lines or attach to first line
       if (attachments && attachments.length > 0 && journalLines.length > 0) {
-        const firstAttachment = attachments[0];
-        journalLines[0].file_name = firstAttachment.name;
-        journalLines[0].file_url = firstAttachment.url || null;
-        journalLines[0].file_type = firstAttachment.type;
+        // Attach each file to a journal line (cycling through lines if more files than lines)
+        attachments.forEach((attachment, index) => {
+          const lineIndex = index % journalLines.length;
+          if (!journalLines[lineIndex].file_name) {
+            journalLines[lineIndex].file_name = attachment.name;
+            journalLines[lineIndex].file_url = attachment.url;
+            journalLines[lineIndex].file_type = attachment.type;
+          }
+        });
       }
 
       const { data: lines, error: linesError } = await supabase
@@ -185,8 +231,7 @@ class JournalEntriesEndpoint {
       }
 
       const updateData = {
-        status,
-        updated_at: new Date().toISOString()
+        status
       };
 
       if (status === 'Rejected' && rejectionReason) {
@@ -323,6 +368,69 @@ class JournalEntriesEndpoint {
       console.error('Error fetching journal entries:', err);
       return res.status(500).json({ error: 'Server error occurred while fetching journal entries.' });
     }
+  }
+
+  // Upload files to Supabase Storage
+  static async uploadFiles(req, res) {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files provided' });
+      }
+
+      const uploadedFiles = [];
+      const timestamp = Date.now();
+
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        
+        // Create unique filename: timestamp_originalname
+        const fileName = `${timestamp}_${i}_${file.originalname}`;
+        const filePath = `journal-attachments/${fileName}`;
+
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('ledgerify-files') // Make sure this bucket exists in Supabase
+          .upload(filePath, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false
+          });
+
+        if (error) {
+          console.error('Error uploading file to Supabase Storage:', error);
+          return res.status(500).json({ 
+            error: `Failed to upload file ${file.originalname}: ${error.message}` 
+          });
+        }
+
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('ledgerify-files')
+          .getPublicUrl(filePath);
+
+        uploadedFiles.push({
+          name: file.originalname,
+          url: urlData.publicUrl,
+          type: file.mimetype,
+          size: file.size
+        });
+      }
+
+      return res.json({
+        message: 'Files uploaded successfully',
+        files: uploadedFiles
+      });
+
+    } catch (err) {
+      console.error('File upload error:', err);
+      return res.status(500).json({ 
+        error: 'Server error occurred while uploading files.' 
+      });
+    }
+  }
+
+  // Get the multer upload middleware
+  static getUploadMiddleware() {
+    return upload.array('files', 10); // Allow up to 10 files
   }
 }
 

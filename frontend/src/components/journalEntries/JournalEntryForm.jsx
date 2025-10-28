@@ -176,12 +176,36 @@ function JournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, curren
     }
 
     try {
+      let uploadedFiles = [];
+
+      // Step 1: Upload files if any
+      if (attachments.length > 0) {
+        const formData = new FormData();
+        attachments.forEach(file => {
+          formData.append('files', file);
+        });
+
+        const uploadResponse = await fetch('http://localhost:5000/upload-files', {
+          method: 'POST',
+          body: formData
+        });
+
+        const uploadData = await uploadResponse.json();
+
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.error || 'Failed to upload files');
+        }
+
+        uploadedFiles = uploadData.files;
+      }
+
+      // Step 2: Create journal entry with file URLs
       const payload = {
         user_id: currentUser.id,
         description,
         debits: debits.map(d => ({ accountId: d.accountId, amount: parseFloat(d.amount) })),
         credits: credits.map(c => ({ accountId: c.accountId, amount: parseFloat(c.amount) })),
-        attachments: attachments.map(f => ({ name: f.name, size: f.size, type: f.type }))
+        attachments: uploadedFiles
       };
 
       const response = await fetch('http://localhost:5000/journal-entries', {

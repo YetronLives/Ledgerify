@@ -59,6 +59,7 @@ app.delete('/chart-of-accounts/:accountId', ChartOfAccountsEndpoint.deleteAccoun
 app.post('/journal-entries', JournalEntriesEndpoint.createJournalEntry);
 app.put('/journal-entries/:entryId/status', JournalEntriesEndpoint.updateJournalEntryStatus);
 app.get('/journal-entries', JournalEntriesEndpoint.getJournalEntries);
+app.post('/upload-files', JournalEntriesEndpoint.getUploadMiddleware(), JournalEntriesEndpoint.uploadFiles);
 
 // Send Email endpoint
 app.post('/send-email', async (req, res) => {
