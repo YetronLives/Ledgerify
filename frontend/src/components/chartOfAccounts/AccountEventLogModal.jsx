@@ -59,9 +59,14 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
         throw new Error(result.error || 'Failed to load event logs');
       }
 
-      // Sort oldest first (creation at top)
-      const sortedLogs = [...(result.eventLogs || [])].sort((a, b) => 
-        new Date(a.event_time) - new Date(b.event_time)
+      // Filter out logs with no actual changes and sort newest first
+      const logsWithChanges = (result.eventLogs || []).filter(log => {
+        const changes = getChangedFields(log.before_image, log.after_image);
+        return changes.length > 0;
+      });
+
+      const sortedLogs = [...logsWithChanges].sort((a, b) => 
+        new Date(b.event_time) - new Date(a.event_time)
       );
       setEventLogs(sortedLogs);
     } catch (err) {
@@ -82,13 +87,17 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
         ) : error ? (
           <p className="text-red-500">{error}</p>
         ) : eventLogs.length === 0 ? (
-          <p className="text-gray-500">No event logs found for this account.</p>
+          <p className="text-gray-500">
+            No event logs found for this account. This may occur if logs have no changes or if logging was recently enabled.
+          </p>
         ) : (
           <div className="space-y-5">
             {eventLogs.map((log) => {
               const changes = getChangedFields(log.before_image, log.after_image);
+              // Treat as creation if action_type is INSERT or if there's no before_image
+              const isCreation = log.action_type === 'INSERT' || !log.before_image;
               const actionText = 
-                log.action_type === 'INSERT' ? 'Account created' :
+                isCreation ? 'Account created' :
                 log.action_type === 'UPDATE' ? 'Account updated' :
                 'Account deleted';
 
@@ -100,35 +109,39 @@ const AccountEventLogModal = ({ account, isOpen, onClose, currentUser }) => {
                       {new Date(log.event_time).toLocaleString()}
                     </span>
                     {' — '}
-                    <span>User: {log.user_id || 'Unknown'}</span> {/* ✅ SHOW ROLE */}
+                    <span>User: {log.user_id || 'Unknown'}</span>
                   </div>
 
                   {/* Action */}
                   <p className="font-semibold text-gray-800 mb-3">{actionText}</p>
 
                   {/* Changes */}
-                  <div className="text-sm space-y-1">
-                    {changes.map(({ field, oldValue, newValue }) => {
-                      const fieldName = formatFieldName(field);
-                      const oldValueStr = oldValue == null ? '(none)' : String(oldValue);
-                      const newValueStr = newValue == null ? '(none)' : String(newValue);
+                  {changes.length > 0 ? (
+                    <div className="text-sm space-y-1">
+                      {changes.map(({ field, oldValue, newValue }) => {
+                        const fieldName = formatFieldName(field);
+                        const oldValueStr = oldValue == null ? '(none)' : String(oldValue);
+                        const newValueStr = newValue == null ? '(none)' : String(newValue);
 
-                      return (
-                        <div key={field} className="flex">
-                          <span className="font-medium w-36 flex-shrink-0">{fieldName}:</span>
-                          {log.action_type === 'INSERT' ? (
-                            <span className="text-gray-700">{newValueStr}</span>
-                          ) : (
-                            <span className="text-gray-700">
-                              <span className="text-red-600 line-through">{oldValueStr}</span>
-                              {' → '}
-                              <span className="text-green-600">{newValueStr}</span>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        return (
+                          <div key={field} className="flex">
+                            <span className="font-medium w-36 flex-shrink-0">{fieldName}:</span>
+                            {isCreation ? (
+                              <span className="text-gray-700">{newValueStr}</span>
+                            ) : (
+                              <span className="text-gray-700">
+                                <span className="text-red-600 line-through">{oldValueStr}</span>
+                                {' → '}
+                                <span className="text-green-600">{newValueStr}</span>
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No changes to display.</p>
+                  )}
                 </div>
               );
             })}

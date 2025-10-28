@@ -744,14 +744,23 @@ app.put('/chart-of-accounts/:accountId', async (req, res) => {
       return res.status(500).json({ error: 'Failed to update account: ' + updateError.message });
     }
 
-    const logResult = await EventLogger.logAccountUpdate(
-      accountId,
-      beforeData,
-      updatedAccount,
-      beforeData.user_id
-    );
-    if (!logResult.success) {
-      console.error('Failed to log account update event:', logResult.error);
+    // ✅ Only log if there are actual changes
+    const hasChanges = Object.keys(updateData).some(key => {
+      return JSON.stringify(beforeData[key]) !== JSON.stringify(updatedAccount[key]);
+    });
+
+    if (hasChanges) {
+      const logResult = await EventLogger.logAccountUpdate(
+        accountId,
+        beforeData,
+        updatedAccount,
+        beforeData.user_id
+      );
+      if (!logResult.success) {
+        console.error('Failed to log account update event:', logResult.error);
+      }
+    } else {
+      console.log('Skipping event log - no actual changes detected');
     }
 
     return res.json({
