@@ -18,17 +18,17 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
       return;
     }
 
-    const role = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1).toLowerCase();
+    const role = currentUser.role;
 
-    if (role === 'Admin') {
+    if (role === 'Administrator') {
       setAvailableRoles(['Manager', 'Accountant']);
-      setToRole('Manager'); // must match DB casing
+      setToRole('Manager');
     } else if (role === 'Accountant') {
-      setAvailableRoles(['Manager', 'Admin']);
+      setAvailableRoles(['Manager', 'Administrator']);
       setToRole('Manager');
     } else if (role === 'Manager') {
-      setAvailableRoles(['Admin']);
-      setToRole('Admin');
+      setAvailableRoles(['Administrator']);
+      setToRole('Administrator');
     } else {
       setAvailableRoles([]);
       setToRole('');
@@ -52,7 +52,9 @@ const EmailFromAccountModal = ({ isOpen, onClose, currentUser }) => {
       const fetchUsersByRole = async () => {
         setLoadingUsers(true);
         try {
-          const response = await fetch(`http://localhost:5000/users?role=${encodeURIComponent(toRole)}`);
+          // Map 'Administrator' to 'Admin' for database query
+          const dbRole = toRole === 'Administrator' ? 'Admin' : toRole;
+          const response = await fetch(`http://localhost:5000/users?role=${encodeURIComponent(dbRole)}`);
           if (!response.ok) {
             throw new Error(`Failed to load users: ${response.status} ${response.statusText}`);
           }
