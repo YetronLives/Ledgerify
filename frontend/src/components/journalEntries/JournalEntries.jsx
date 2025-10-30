@@ -1,12 +1,24 @@
-// src/components/JournalEntriesPage.jsx
-
 import React, { useState, useMemo } from 'react';
 import { IconPlusCircle, IconPaperclip } from '../ui/Icons'; 
 import JournalEntryForm from './JournalEntryForm';
+import AdjustingJournalEntryForm from './AdjustingJournalEntryForm'; 
 import DateInput from '../ui/DateInput';
 import Modal from '../ui/Modal'; 
 
-function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJournalEntry, setPage, setSelectedLedgerAccountId, selectedJournalEntryId, setSelectedJournalEntryId, updateJournalEntryStatus }) {
+function JournalEntriesPage({ 
+    currentUser, 
+    allAccounts, 
+    journalEntries, 
+    addJournalEntry, 
+    setPage, 
+    setSelectedLedgerAccountId, 
+    selectedJournalEntryId, 
+    setSelectedJournalEntryId, 
+    updateJournalEntryStatus,
+    adjustingJournalEntries,        
+    addAdjustingJournalEntry,        
+    updateAdjustingJournalEntryStatus 
+}) {
     const [isCreating, setIsCreating] = useState(false);
     const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' ? 'Pending Review' : 'Approved');
     const [searchTerm, setSearchTerm] = useState('');
@@ -17,11 +29,17 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
     const [rejectionReason, setRejectionReason] = useState('');
     const [showAccountSuggestions, setShowAccountSuggestions] = useState(false);
 
+    const [entryType, setEntryType] = useState('regular'); 
+
     const canCreate = currentUser.role === 'Manager' || currentUser.role === 'Accountant';
     const isManager = currentUser.role === 'Manager';
 
     const handleSubmit = (newEntry) => {
-        addJournalEntry(newEntry);
+        if (entryType === 'regular') {
+            addJournalEntry(newEntry);
+        } else {
+            addAdjustingJournalEntry(newEntry);
+        }
         setIsCreating(false);
     };
 
@@ -35,12 +53,15 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
     };
 
     const sortedAndFilteredEntries = useMemo(() => {
+        const currentEntries = entryType === 'regular' ? journalEntries : adjustingJournalEntries;
+
         if (selectedJournalEntryId) {
-            const selectedEntry = journalEntries.find(entry => entry.id === selectedJournalEntryId);
+            const selectedEntry = journalEntries.find(entry => entry.id === selectedJournalEntryId) ||
+                                  adjustingJournalEntries.find(entry => entry.id === selectedJournalEntryId);
             return selectedEntry ? [selectedEntry] : [];
         }
 
-        return journalEntries
+        return currentEntries
             .filter(entry => {
                 if (entry.status !== viewStatus) return false;
 
@@ -69,16 +90,17 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                 if (searchTerm) {
                     const lowerSearchTerm = searchTerm.toLowerCase();
                     const inDescription = entry.description?.toLowerCase().includes(lowerSearchTerm);
+                    const inAdjType = entryType === 'adjusting' && entry.adjustment_type?.toLowerCase().includes(lowerSearchTerm);
                     const inAccountName = 
                         (entry.debits || []).some(d => allAccounts.find(a => a.id == d.accountId)?.name.toLowerCase().includes(lowerSearchTerm)) ||
                         (entry.credits || []).some(c => allAccounts.find(a => a.id == c.accountId)?.name.toLowerCase().includes(lowerSearchTerm));
-                    if (!inDescription && !inAccountName) return false;
+                    if (!inDescription && !inAccountName && !inAdjType) return false;
                 }
                 
                 return true;
             })
             .sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [journalEntries, searchTerm, amountFilter, startDate, endDate, allAccounts, selectedJournalEntryId, viewStatus]);
+    }, [journalEntries, adjustingJournalEntries, entryType, searchTerm, amountFilter, startDate, endDate, allAccounts, selectedJournalEntryId, viewStatus]);
 
     const resetFilters = () => {
         setSearchTerm('');
@@ -98,7 +120,13 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
 
     const handleConfirmReject = () => {
         if (!entryToReject || !rejectionReason) return;
-        updateJournalEntryStatus(entryToReject.id, 'Rejected', rejectionReason);
+
+        if (entryType === 'regular') {
+            updateJournalEntryStatus(entryToReject.id, 'Rejected', rejectionReason);
+        } else {
+            updateAdjustingJournalEntryStatus(entryToReject.id, 'Rejected', rejectionReason);
+        }
+        
         setEntryToReject(null);
         setRejectionReason('');
     };
@@ -119,22 +147,49 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
     return (
         <div>
             {isCreating ? (
-                <JournalEntryForm
-                    accounts={allAccounts}
-                    journalEntries={journalEntries}
-                    onSubmit={handleSubmit}
-                    onCancel={() => setIsCreating(false)}
-                    currentUser={currentUser}
-                />
+                entryType === 'regular' ? (
+                    <JournalEntryForm
+                        accounts={allAccounts}
+                        journalEntries={journalEntries}
+                        onSubmit={handleSubmit}
+                        onCancel={() => setIsCreating(false)}
+                        currentUser={currentUser}
+                    />
+                ) : (
+                    <AdjustingJournalEntryForm
+                        accounts={allAccounts}
+                        journalEntries={[...journalEntries, ...adjustingJournalEntries]}
+                        onSubmit={handleSubmit}
+                        onCancel={() => setIsCreating(false)}
+                        currentUser={currentUser}
+                    />
+                )
             ) : (
                 <div className="bg-white p-6 rounded-lg shadow-md">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-gray-800">Journal Entries</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">
+                            {entryType === 'regular' ? 'Journal Entries' : 'Adjusting Journal Entries'}
+                        </h2>
                         {canCreate && (
                             <button onClick={() => setIsCreating(true)} className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2">
-                                <IconPlusCircle /><span>Create New Entry</span>
+                                <IconPlusCircle /><span>{entryType === 'regular' ? 'Create New Entry' : 'Create New Adjusting Entry'}</span>
                             </button>
                         )}
+                    </div>
+
+                    <div className="flex space-x-2 mb-4 border-b">
+                        <button
+                            onClick={() => { setEntryType('regular'); resetFilters(); }}
+                            className={`py-2 px-4 text-sm font-medium ${entryType === 'regular' ? 'border-b-2 border-teal-600 text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Regular Entries
+                        </button>
+                        <button
+                            onClick={() => { setEntryType('adjusting'); resetFilters(); }}
+                            className={`py-2 px-4 text-sm font-medium ${entryType === 'adjusting' ? 'border-b-2 border-teal-600 text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Adjusting Entries
+                        </button>
                     </div>
 
                     {selectedJournalEntryId ? (
@@ -168,7 +223,9 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                             <div className="p-4 bg-gray-50 rounded-lg border mb-4 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div className="relative">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Search by Account Name or Description</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Search by Account, Description {entryType === 'adjusting' && ', or Type'}
+                                        </label>
                                         <input
                                             type="text"
                                             placeholder="e.g., Office Supplies"
@@ -229,6 +286,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                 <tr>
                                     <th className="p-3">Date</th>
                                     <th className="p-3">Description</th>
+                                    {entryType === 'adjusting' && <th className="p-3">Type</th>}
                                     <th className="p-3">Debits</th>
                                     <th className="p-3">Credits</th>
                                     <th className="p-3">Attachments</th>
@@ -250,6 +308,11 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                     </div>
                                                 )}
                                             </td>
+                                            {entryType === 'adjusting' && (
+                                                <td className="p-3 align-top">
+                                                    {entry.adjustment_type || <span className="text-gray-400">N/A</span>}
+                                                </td>
+                                            )}
                                             <td className="p-3 align-top">
                                                 {(entry.debits || []).map(d => {
                                                     const acc = allAccounts.find(a => a.id == d.accountId);
@@ -314,7 +377,13 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                                 <td className="p-3 align-top">
                                                     <div className="flex space-x-2">
                                                         <button 
-                                                            onClick={() => updateJournalEntryStatus(entry.id, 'Approved')}
+                                                            onClick={() => {
+                                                                if (entryType === 'regular') {
+                                                                    updateJournalEntryStatus(entry.id, 'Approved');
+                                                                } else {
+                                                                    updateAdjustingJournalEntryStatus(entry.id, 'Approved');
+                                                                }
+                                                            }}
                                                             className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
                                                             title="Approve this entry"
                                                         >
@@ -334,8 +403,15 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isManager && viewStatus === 'Pending Review' && !selectedJournalEntryId ? 6 : 5} className="text-center p-8 text-gray-500">
-                                            No journal entries match your criteria.
+                                        <td 
+                                            colSpan={
+                                                isManager && viewStatus === 'Pending Review' && !selectedJournalEntryId 
+                                                    ? (entryType === 'adjusting' ? 7 : 6) 
+                                                    : (entryType === 'adjusting' ? 6 : 5)
+                                            } 
+                                            className="text-center p-8 text-gray-500"
+                                        >
+                                            No {entryType} entries match your criteria.
                                         </td>
                                     </tr>
                                 )}
@@ -345,10 +421,10 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                 </div>
             )}
 
-            <Modal isOpen={!!entryToReject} onClose={closeRejectModal} title="Reject Journal Entry">
+            <Modal isOpen={!!entryToReject} onClose={closeRejectModal} title={`Reject ${entryType} Entry`}>
                 <div className="space-y-4">
                     <p>
-                        You must provide a reason for rejecting this journal entry.
+                        You must provide a reason for rejecting this {entryType} entry.
                         This reason will be visible to the accountant.
                     </p>
                     <label className="block text-sm font-medium text-gray-700">
@@ -360,6 +436,7 @@ function JournalEntriesPage({ currentUser, allAccounts, journalEntries, addJourn
                         rows="4"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                         placeholder="e.g., Incorrect account used for debit..."
+                        required 
                     />
                     <div className="flex justify-end space-x-2 pt-2">
                         <button

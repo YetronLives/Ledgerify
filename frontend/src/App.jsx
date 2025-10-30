@@ -48,6 +48,7 @@ function App() {
     const [users, setUsers] = useState([]);
     const [allAccounts, setAllAccounts] = useState([]);
     const [journalEntries, setJournalEntries] = useState([]);
+    const [adjustingJournalEntries, setAdjustingJournalEntries] = useState([]);
 
     useEffect(() => {
         fetch('http://localhost:5000/users')
@@ -92,6 +93,15 @@ function App() {
                 }
             })
             .catch(err => console.error("Failed to fetch journal entries:", err));
+
+        fetch('http://localhost:5000/adjusting-journal-entries')
+            .then(response => response.json())
+            .then(data => {
+                if (data.entries) {
+                    setAdjustingJournalEntries(data.entries);
+                }
+            })
+            .catch(err => console.error("Failed to fetch adjusting journal entries:", err));
 
     }, []);
 
@@ -405,6 +415,85 @@ function App() {
         }
     };
 
+    const addAdjustingJournalEntry = async (newEntryData) => {
+        const entryWithStatus = { ...newEntryData };
+        if (user.role === 'Manager') {
+            entryWithStatus.status = 'Approved';
+        } else {
+            entryWithStatus.status = 'Pending Review'; 
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/adjusting-journal-entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entryWithStatus)
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to create adjusting entry');
+            }
+
+            const createdEntry = await response.json(); 
+
+            setAdjustingJournalEntries(prev => [...prev, createdEntry]);
+
+            if (createdEntry.status === 'Approved') {
+                updateAccountBalances(createdEntry);
+                alert('Adjusting journal entry created and approved successfully!');
+            } else {
+                alert('Your adjusting journal entry has been submitted for manager review.');
+            }
+
+        } catch (err) {
+            console.error('Error creating adjusting journal entry:', err);
+            alert(`Failed to create entry: ${err.message}`);
+        }
+    };
+
+    const updateAdjustingJournalEntryStatus = async (entryId, newStatus, reason = null) => {
+        try {
+            const response = await fetch(`http://localhost:5000/adjusting-journal-entries/${entryId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status: newStatus,
+                    rejectionReason: reason,
+                    updated_by_user_id: user.id
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update adjusting journal entry status');
+            }
+
+            let entryToUpdate = null;
+            setAdjustingJournalEntries(prevEntries => 
+                prevEntries.map(entry => {
+                    if (entry.id === entryId) {
+                        entryToUpdate = { ...entry, status: newStatus };
+                        if (newStatus === 'Rejected' && reason) {
+                            entryToUpdate.rejectionReason = reason;
+                        }
+                        return entryToUpdate;
+                    }
+                    return entry;
+                })
+            );
+
+            if (newStatus === 'Approved' && entryToUpdate) {
+                updateAccountBalances(entryToUpdate);
+            }
+        } catch (err) {
+            console.error('Error updating adjusting journal entry status:', err);
+            alert(`Failed to ${newStatus.toLowerCase()} adjusting journal entry: ${err.message}`);
+        }
+    };
+
 
     const logout = () => {
         setUser(null);
@@ -521,8 +610,8 @@ function App() {
                     {page === 'userhome' && <UserHome user={user} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
                     {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
-                    {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={journalEntries} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
-                    {page === 'journal' && <JournalEntriesPage currentUser={user} allAccounts={allAccounts} journalEntries={journalEntries} addJournalEntry={addJournalEntry} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} selectedJournalEntryId={selectedJournalEntryId} setSelectedJournalEntryId={setSelectedJournalEntryId} updateJournalEntryStatus={updateJournalEntryStatus} />}
+                    {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={[...journalEntries, ...adjustingJournalEntries]} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
+                    {page === 'journal' && <JournalEntriesPage currentUser={user} allAccounts={allAccounts} journalEntries={journalEntries} addJournalEntry={addJournalEntry} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} selectedJournalEntryId={selectedJournalEntryId} setSelectedJournalEntryId={setSelectedJournalEntryId} updateJournalEntryStatus={updateJournalEntryStatus} adjustingJournalEntries={adjustingJournalEntries} addAdjustingJournalEntry={addAdjustingJournalEntry} updateAdjustingJournalEntryStatus={updateAdjustingJournalEntryStatus} />}
                     {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
                     {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
