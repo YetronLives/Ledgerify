@@ -8,6 +8,7 @@ import PlaceholderScreen from './components/ui/PlaceholderScreen';
 import ChartOfAccounts from './components/chartOfAccounts/ChartOfAccounts';
 import AccountLedger from './components/chartOfAccounts/AccountLedger';
 import JournalEntriesPage from './components/journalEntries/JournalEntries';
+import FinancialReportsPage from './components/financialReports/FinancialReportsPage';
 import { IconLogo, IconUser } from './components/ui/Icons';
 import UserHome from './components/UserHome';
 import Profile from './components/Profile';
@@ -607,15 +608,14 @@ function App() {
                             </button>
                         </div>
                     )}
-                    {page === 'userhome' && <UserHome user={user} />}
+                    {page === 'userhome' && <UserHome user={user} setPage={setPage} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
                     {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={[...journalEntries, ...adjustingJournalEntries]} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
                     {page === 'journal' && <JournalEntriesPage currentUser={user} allAccounts={allAccounts} journalEntries={journalEntries} addJournalEntry={addJournalEntry} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} selectedJournalEntryId={selectedJournalEntryId} setSelectedJournalEntryId={setSelectedJournalEntryId} updateJournalEntryStatus={updateJournalEntryStatus} adjustingJournalEntries={adjustingJournalEntries} addAdjustingJournalEntry={addAdjustingJournalEntry} updateAdjustingJournalEntryStatus={updateAdjustingJournalEntryStatus} />}
-                    {page === 'reports' && <PlaceholderScreen title="Financial Reports" message="Financial Reports module under construction." />}
+                    {page === 'reports' && <FinancialReportsPage accounts={allAccounts} journalEntries={[...journalEntries, ...adjustingJournalEntries]} currentUser={user} onBack={() => setPage('userhome')} setPage={setPage} />}
                     {page === 'users' && <UserManagement mockUsers={users} updateUserInApp={updateUserInApp} addUserToApp={addUserToApp} />}
-                    {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />}
-                     {page === 'help' && (
+                    {page === 'profile' && <Profile user={user} updateUserInApp={updateUserInApp} />} {page === 'help' && (
                         <div className="help-content" style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', lineHeight: 1.6, color: '#333', fontSize: '16px' }}>
                             <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '20px', color: '#2c3e50' }}>📘 Welcome to Ledgerify</h1>
                             <p>

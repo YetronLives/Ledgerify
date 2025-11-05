@@ -1,6 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+// src/components/journalEntries/AdjustingJournalEntryForm.jsx
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { IconPaperclip, IconX } from '../ui/Icons';
-import { computeAccountBalances } from '../../utils/accountUtils'; 
+import { computeAccountBalances } from '../../utils/accountUtils';
+
+// ✅ Simulate error messages from DB (Sprint 4 req #28)
+const ERROR_MESSAGES = {
+  MISSING_DESCRIPTION: "Description is mandatory for adjusting entries.",
+  DEBITS_CREDITS_ZERO: "Debits and Credits must be greater than zero.",
+  IMBALANCED_ENTRY: "Total debits must equal total credits.",
+  INCOMPLETE_LINE: "Please select an account and enter an amount for each line.",
+  MISSING_DEBIT_CREDIT: "Each transaction must have at least one debit and one credit.",
+  SUBMISSION_FAILED: "Failed to submit adjusting journal entry. Please try again."
+};
 
 const AccountSearchInput = ({ value, onChange, accounts, balances = {} }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,9 +32,7 @@ const AccountSearchInput = ({ value, onChange, accounts, balances = {} }) => {
   const handleInputChange = (e) => {
     const val = e.target.value;
     setInputValue(val);
-    if (!val) {
-      onChange('');
-    }
+    if (!val) onChange('');
     setIsOpen(true);
   };
 
@@ -73,13 +82,13 @@ const AccountSearchInput = ({ value, onChange, accounts, balances = {} }) => {
 function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, currentUser }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [description, setDescription] = useState('');
-  const [adjustmentType, setAdjustmentType] = useState(''); 
+  const [adjustmentType, setAdjustmentType] = useState('');
   const [debits, setDebits] = useState([{ id: Date.now(), accountId: '', amount: '' }]);
   const [credits, setCredits] = useState([{ id: Date.now() + 1, accountId: '', amount: '' }]);
   const [error, setError] = useState('');
   
   const [attachments, setAttachments] = useState([]);
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = useRef(null);
   const ACCEPTED_FILES = "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,image/jpeg,image/png";
 
   useEffect(() => {
@@ -159,64 +168,62 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
     e.preventDefault();
     setError('');
 
+    // ✅ Validation per Sprint 4
     if (!description) {
-      setError('Description is mandatory for adjusting entries.');
+      setError(ERROR_MESSAGES.MISSING_DESCRIPTION);
       return;
     }
     if (totalDebits === 0 || totalCredits === 0) {
-      setError('Debits and Credits must be greater than zero.');
+      setError(ERROR_MESSAGES.DEBITS_CREDITS_ZERO);
       return;
     }
     if (totalDebits !== totalCredits) {
-      setError('Total debits must equal total credits.');
+      setError(ERROR_MESSAGES.IMBALANCED_ENTRY);
       return;
     }
-
+    if (debits.length === 0 || credits.length === 0) {
+      setError(ERROR_MESSAGES.MISSING_DEBIT_CREDIT);
+      return;
+    }
     const isAnyFieldEmpty = [...debits, ...credits].some(item => !item.accountId || !item.amount);
     if (isAnyFieldEmpty) {
-      setError('Please select an account and enter an amount for each line.');
+      setError(ERROR_MESSAGES.INCOMPLETE_LINE);
       return;
     }
 
     try {
       let uploadedFiles = [];
-
       if (attachments.length > 0) {
         const formData = new FormData();
         attachments.forEach(file => {
           formData.append('files', file);
         });
-
-        const uploadResponse = await fetch('http://localhost:5000/upload-files', {
+        const uploadResponse = await fetch('/upload-files', {
           method: 'POST',
           body: formData
         });
-
         const uploadData = await uploadResponse.json();
-
         if (!uploadResponse.ok) {
           throw new Error(uploadData.error || 'Failed to upload files');
         }
-
         uploadedFiles = uploadData.files;
       }
 
       const payload = {
         user_id: currentUser.id,
         description,
-        adjustment_type: adjustmentType || null, 
+        adjustment_type: adjustmentType || null,
         debits: debits.map(d => ({ accountId: d.accountId, amount: parseFloat(d.amount) })),
         credits: credits.map(c => ({ accountId: c.accountId, amount: parseFloat(c.amount) })),
         attachments: uploadedFiles,
         date: new Date().toISOString(),
-        id: `aje-${Date.now()}` 
+        id: `aje-${Date.now()}`
       };
 
       onSubmit(payload);
-
     } catch (err) {
       console.error('Error submitting adjusting journal entry:', err);
-      setError(err.message || 'Failed to submit adjusting journal entry. Please try again.');
+      setError(ERROR_MESSAGES.SUBMISSION_FAILED);
     }
   };
 
@@ -402,14 +409,24 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
           )}
         </div>
 
+        {/* Error Message */}
         {error && <div className="text-red-600 text-sm text-center font-semibold p-2 bg-red-50 rounded-lg">{error}</div>}
+        
+        {/* Balance Status */}
         <div className={`text-center font-bold text-lg p-2 rounded-lg ${totalDebits !== totalCredits || totalDebits === 0 ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'}`}>
           {totalDebits !== totalCredits ? 'Out of Balance' : 'Balanced'}
         </div>
 
+        {/* Action Buttons */}
         <div className="flex justify-end space-x-2 pt-4">
           <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Submit Adjusting Entry</button>
+          <button 
+            type="submit" 
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            disabled={totalDebits !== totalCredits || totalDebits === 0}
+          >
+            Submit Adjusting Entry
+          </button>
         </div>
       </form>
     </div>
