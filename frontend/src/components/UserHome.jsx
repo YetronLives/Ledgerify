@@ -33,7 +33,7 @@ function UserHome({ user, setPage, pendingEntriesCount }) {
                             <p className="font-bold">Pending Actions Required</p>
                             <p>
                                 You have {pendingEntriesCount} journal {pendingEntriesCount === 1 ? 'entry' : 'entries'} pending your review.
-                                <span className="font-semibold underline ml-2">View now &rarr;</span>
+                                <span className="font-semibold underline ml-2 text-black">View now &rarr;</span>
                             </p>
                         </div>
                     </div>
