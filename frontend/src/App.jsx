@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect } from 'react';
+import React, { useState, useId, useEffect, useMemo } from 'react';
 import LoginScreen from './components/auth/LoginScreen';
 import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
@@ -115,6 +115,13 @@ function App() {
     const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState(null);
     const [selectedJournalEntryId, setSelectedJournalEntryId] = useState(null);
 
+    const pendingEntriesCount = useMemo(() => {
+        const pendingRegular = journalEntries.filter(entry => entry.status === 'Pending Review').length;
+        const pendingAdjusting = adjustingJournalEntries.filter(entry => entry.status === 'Pending Review').length;
+        return pendingRegular + pendingAdjusting;
+    }, [journalEntries, adjustingJournalEntries]);
+
+
     // ✅ Reusable function to update account balances based on a journal entry
     const updateAccountBalances = (journalEntry) => {
         setAllAccounts(prevAccounts => {
@@ -158,7 +165,6 @@ function App() {
      // Functions
     const onLogin = (userData) => {
         const mappedUserData = {
-           id: userData.id,
            id: userData.id, // Store the user ID for API calls
             email: userData.email,
             role: userData.role === 'Admin' ? 'Administrator' : userData.role,
@@ -608,7 +614,7 @@ function App() {
                             </button>
                         </div>
                     )}
-                    {page === 'userhome' && <UserHome user={user} setPage={setPage} />}
+                    {page === 'userhome' && <UserHome user={user} setPage={setPage} pendingEntriesCount={pendingEntriesCount} />}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
                     {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={[...journalEntries, ...adjustingJournalEntries]} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
