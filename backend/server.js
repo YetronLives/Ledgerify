@@ -6,6 +6,7 @@ const EventLogger = require('./eventLogger');
 const UserEndpoint = require('./userEndpoint');
 const ChartOfAccountsEndpoint = require('./chartOfAccountsEndpoint');
 const JournalEntriesEndpoint = require('./journalEntriesEndpoint');
+const AdjustingJournalEntriesEndpoint = require('./adjustingJournalEntriesEndpoint');
 
 const nodemailer = require('nodemailer');
 
@@ -60,6 +61,11 @@ app.post('/journal-entries', JournalEntriesEndpoint.createJournalEntry);
 app.put('/journal-entries/:entryId/status', JournalEntriesEndpoint.updateJournalEntryStatus);
 app.get('/journal-entries', JournalEntriesEndpoint.getJournalEntries);
 app.post('/upload-files', JournalEntriesEndpoint.getUploadMiddleware(), JournalEntriesEndpoint.uploadFiles);
+
+// Adjusting Journal Entries endpoints
+app.post('/adjusting-journal-entries', AdjustingJournalEntriesEndpoint.createAdjustingJournalEntry);
+app.get('/adjusting-journal-entries', AdjustingJournalEntriesEndpoint.getAdjustingJournalEntries);
+app.put('/adjusting-journal-entries/:entryId/status', AdjustingJournalEntriesEndpoint.updateAdjustingJournalEntryStatus);
 
 // Send Email endpoint
 app.post('/send-email', async (req, res) => {

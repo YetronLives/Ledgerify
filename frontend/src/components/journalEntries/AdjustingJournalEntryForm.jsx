@@ -198,7 +198,7 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
         attachments.forEach(file => {
           formData.append('files', file);
         });
-        const uploadResponse = await fetch('/upload-files', {
+        const uploadResponse = await fetch('http://localhost:5000/upload-files', {
           method: 'POST',
           body: formData
         });
@@ -209,21 +209,39 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
         uploadedFiles = uploadData.files;
       }
 
+      // Prepare payload for backend API
       const payload = {
         user_id: currentUser.id,
         description,
         adjustment_type: adjustmentType || null,
         debits: debits.map(d => ({ accountId: d.accountId, amount: parseFloat(d.amount) })),
         credits: credits.map(c => ({ accountId: c.accountId, amount: parseFloat(c.amount) })),
-        attachments: uploadedFiles,
-        date: new Date().toISOString(),
-        id: `aje-${Date.now()}`
+        attachments: uploadedFiles
       };
 
-      onSubmit(payload);
+      console.log('Submitting adjusting journal entry payload:', payload);
+      console.log('currentUser:', currentUser);
+
+      // Call backend API to create adjusting journal entry
+      const response = await fetch('http://localhost:5000/adjusting-journal-entries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create adjusting journal entry');
+      }
+
+      // Call the parent component's handler with the created entry
+      onSubmit(data.adjustingJournalEntry);
     } catch (err) {
       console.error('Error submitting adjusting journal entry:', err);
-      setError(ERROR_MESSAGES.SUBMISSION_FAILED);
+      setError(err.message || ERROR_MESSAGES.SUBMISSION_FAILED);
     }
   };
 

@@ -423,39 +423,14 @@ function App() {
     };
 
     const addAdjustingJournalEntry = async (newEntryData) => {
-        const entryWithStatus = { ...newEntryData };
-        if (user.role === 'Manager') {
-            entryWithStatus.status = 'Approved';
+        // Entry is already created by the form, just add it to state
+        setAdjustingJournalEntries(prev => [...prev, newEntryData]);
+
+        if (newEntryData.status === 'Approved') {
+            updateAccountBalances(newEntryData);
+            alert('Adjusting journal entry created and approved successfully!');
         } else {
-            entryWithStatus.status = 'Pending Review'; 
-        }
-
-        try {
-            const response = await fetch('http://localhost:5000/adjusting-journal-entries', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(entryWithStatus)
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to create adjusting entry');
-            }
-
-            const createdEntry = await response.json(); 
-
-            setAdjustingJournalEntries(prev => [...prev, createdEntry]);
-
-            if (createdEntry.status === 'Approved') {
-                updateAccountBalances(createdEntry);
-                alert('Adjusting journal entry created and approved successfully!');
-            } else {
-                alert('Your adjusting journal entry has been submitted for manager review.');
-            }
-
-        } catch (err) {
-            console.error('Error creating adjusting journal entry:', err);
-            alert(`Failed to create entry: ${err.message}`);
+            alert('Your adjusting journal entry has been submitted for manager review.');
         }
     };
 
@@ -468,8 +443,8 @@ function App() {
                 },
                 body: JSON.stringify({
                     status: newStatus,
-                    rejectionReason: reason,
-                    updated_by_user_id: user.id
+                    rejection_reason: reason,
+                    user_id: user.id
                 })
             });
 
