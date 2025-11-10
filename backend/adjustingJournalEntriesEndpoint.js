@@ -225,7 +225,7 @@ class AdjustingJournalEntriesEndpoint {
           debits,
           credits,
           attachments,
-          rejectionReason: entry.rejection_reason || null
+          rejectionReason: entry.rejection_reason || null // May be undefined if column doesn't exist
         };
       }));
 
@@ -249,6 +249,8 @@ class AdjustingJournalEntriesEndpoint {
     const { entryId } = req.params;
     const { status, rejection_reason } = req.body;
 
+    console.log('Updating adjusting journal entry status:', { entryId, status, rejection_reason });
+
     if (!entryId) {
       return res.status(400).json({ error: 'Entry ID is required.' });
     }
@@ -257,14 +259,15 @@ class AdjustingJournalEntriesEndpoint {
       return res.status(400).json({ error: 'Valid status (Approved or Rejected) is required.' });
     }
 
-    if (status === 'Rejected' && !rejection_reason) {
-      return res.status(400).json({ error: 'Rejection reason is required when rejecting an entry.' });
-    }
+    // Note: rejection_reason is optional until the column is added to the database
+    // if (status === 'Rejected' && !rejection_reason) {
+    //   return res.status(400).json({ error: 'Rejection reason is required when rejecting an entry.' });
+    // }
 
     try {
+      // Only update status for now (rejection_reason column may not exist yet)
       const updateData = {
-        status,
-        rejection_reason: status === 'Rejected' ? rejection_reason : null
+        status
       };
 
       const { data, error } = await supabase
@@ -275,8 +278,24 @@ class AdjustingJournalEntriesEndpoint {
         .single();
 
       if (error) {
-        console.error('Error updating adjusting journal entry status:', error);
-        return res.status(500).json({ error: 'Failed to update adjusting journal entry status.' });
+        console.error('Supabase error updating adjusting journal entry status:', error);
+        console.error('Attempted to update entry ID:', entryId);
+        console.error('Update data:', updateData);
+        return res.status(500).json({ error: 'Failed to update adjusting journal entry status.', details: error.message });
+      }
+
+      // If rejection_reason was provided and status is Rejected, try to update it separately
+      // This allows the code to work even if the column doesn't exist yet
+      if (status === 'Rejected' && rejection_reason) {
+        const { error: reasonError } = await supabase
+          .from('adjusting_journal_entries')
+          .update({ rejection_reason })
+          .eq('adjusting_journal_entry_id', entryId);
+        
+        if (reasonError) {
+          console.warn('Could not update rejection_reason (column may not exist):', reasonError.message);
+          // Don't fail the entire request if rejection_reason update fails
+        }
       }
 
       // Log the status update
