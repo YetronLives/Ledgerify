@@ -219,9 +219,6 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
         attachments: uploadedFiles
       };
 
-      console.log('Submitting adjusting journal entry payload:', payload);
-      console.log('currentUser:', currentUser);
-
       // Call backend API to create adjusting journal entry
       const response = await fetch('http://localhost:5000/adjusting-journal-entries', {
         method: 'POST',

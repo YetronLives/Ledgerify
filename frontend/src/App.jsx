@@ -118,7 +118,7 @@ function App() {
     const pendingEntriesCount = useMemo(() => {
         const pendingRegular = journalEntries.filter(entry => entry.status === 'Pending Review').length;
         const pendingAdjusting = adjustingJournalEntries.filter(entry => entry.status === 'Pending Review').length;
-        return pendingRegular + pendingAdjusting;
+        return pendingAdjusting;
     }, [journalEntries, adjustingJournalEntries]);
 
 
@@ -435,6 +435,7 @@ function App() {
     };
 
     const updateAdjustingJournalEntryStatus = async (entryId, newStatus, reason = null) => {
+        console.log('Frontend: Updating adjusting journal entry status:', { entryId, newStatus, reason });
         try {
             const response = await fetch(`http://localhost:5000/adjusting-journal-entries/${entryId}/status`, {
                 method: 'PUT',
@@ -450,6 +451,7 @@ function App() {
 
             if (!response.ok) {
                 const data = await response.json();
+                console.error('Backend error response:', data);
                 throw new Error(data.error || 'Failed to update adjusting journal entry status');
             }
 
