@@ -29,7 +29,7 @@ function JournalEntriesPage({
     const [rejectionReason, setRejectionReason] = useState('');
     const [showAccountSuggestions, setShowAccountSuggestions] = useState(false);
 
-    const [entryType, setEntryType] = useState('regular'); 
+    const [entryType, setEntryType] = useState('adjusting'); 
 
     const canCreate = currentUser.role === 'Manager' || currentUser.role === 'Accountant';
     const isManager = currentUser.role === 'Manager';
