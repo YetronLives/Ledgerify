@@ -591,7 +591,7 @@ function App() {
                             </button>
                         </div>
                     )}
-                    {page === 'userhome' && <UserHome user={user} setPage={setPage} pendingEntriesCount={pendingEntriesCount} />}
+                    {page === 'userhome' && (<UserHome user={user} setPage={setPage} pendingEntriesCount={pendingEntriesCount} allAccounts={allAccounts} journalEntries={[...journalEntries, ...adjustingJournalEntries]} />)}
                     {page === 'dashboard' && <Dashboard user={user} mockUsers={users} pendingRequests={pendingRequests} handleRequest={handleRequest} setPage={setPage} updateUserInApp={updateUserInApp} removeUserFromApp={removeUserFromApp} />} 
                     {page === 'accounts' && <ChartOfAccounts currentUser={user} setPage={setPage} setSelectedLedgerAccountId={setSelectedLedgerAccountId} allAccounts={allAccounts} setAllAccounts={setAllAccounts} />}
                     {page === 'ledger' && <AccountLedger account={selectedLedgerAccount} onBack={() => { setPage('accounts'); setSelectedLedgerAccountId(null); }} journalEntries={[...journalEntries, ...adjustingJournalEntries]} setPage={setPage} setSelectedJournalEntryId={setSelectedJournalEntryId} />}
