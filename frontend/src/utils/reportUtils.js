@@ -176,3 +176,78 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
 
   return reportData;
 };
+
+/**
+ * Calculates key financial ratios as of a given date using only approved journal entries.
+ */
+export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => {
+  if (!asOfDate) return [];
+
+  try {
+    const incomeStmt = generateFinancialReport('Income Statement', accounts, journalEntries, asOfDate);
+    const balanceSheet = generateFinancialReport('Balance Sheet', accounts, journalEntries, asOfDate);
+
+    const { netIncome, totalRevenue } = incomeStmt.meta;
+    const { totalAssets, totalLiabilities, totalEquity } = balanceSheet.meta;
+
+    // Helper to find balance by account name (case-insensitive)
+    const findBalanceByName = (name) => {
+      const account = accounts.find(acc => 
+        acc.name.toLowerCase().includes(name.toLowerCase())
+      );
+      if (!account) return 0;
+      return computeAccountBalanceAsOf(
+        account, 
+        getApprovedEntriesThroughDate(journalEntries, asOfDate)
+      );
+    };
+
+    // Estimate current assets/liabilities using common account names
+    const cash = findBalanceByName('Cash') || 0;
+    const receivables = findBalanceByName('Receivable') || 0;
+    const inventory = findBalanceByName('Inventory') || 0;
+    const payables = findBalanceByName('Payable') || 0;
+    const shortTermDebt = findBalanceByName('Short') || findBalanceByName('Current Liabilities') || 0;
+
+    const currentAssets = cash + receivables + inventory;
+    const currentLiabilities = payables + shortTermDebt;
+
+    // Calculate ratios (avoid division by zero)
+    const safeDivide = (num, den) => (den !== 0 ? num / den : null);
+
+    const currentRatio = safeDivide(currentAssets, currentLiabilities);
+    const quickRatio = safeDivide(cash + receivables, currentLiabilities);
+    const debtToEquity = safeDivide(totalLiabilities, totalEquity);
+    const netProfitMargin = safeDivide(netIncome, totalRevenue);
+    const returnOnAssets = safeDivide(netIncome, totalAssets);
+
+    // Status logic
+    const getStatus = (name, value) => {
+      if (value == null || isNaN(value)) return 'gray';
+      const ranges = {
+        currentRatio: { g: [1.5, 3.0], y: [1.0, 3.5] },
+        quickRatio: { g: [1.0, 2.0], y: [0.8, 2.5] },
+        debtToEquity: { g: [0, 1.0], y: [1.0, 2.0] },
+        netProfitMargin: { g: [0.1, 1.0], y: [0.05, 0.1] },
+        returnOnAssets: { g: [0.05, 1.0], y: [0.02, 0.05] },
+      };
+      const r = ranges[name];
+      if (!r) return 'gray';
+      if (value >= r.g[0] && value <= r.g[1]) return 'green';
+      if (value >= r.y[0] && value <= r.y[1]) return 'yellow';
+      return 'red';
+    };
+
+    const ratios = [];
+    if (currentRatio !== null) ratios.push({ name: 'Current Ratio', value: currentRatio, status: getStatus('currentRatio', currentRatio) });
+    if (quickRatio !== null) ratios.push({ name: 'Quick Ratio', value: quickRatio, status: getStatus('quickRatio', quickRatio) });
+    if (debtToEquity !== null) ratios.push({ name: 'Debt-to-Equity', value: debtToEquity, status: getStatus('debtToEquity', debtToEquity) });
+    if (netProfitMargin !== null) ratios.push({ name: 'Net Profit Margin', value: netProfitMargin, status: getStatus('netProfitMargin', netProfitMargin) });
+    if (returnOnAssets !== null) ratios.push({ name: 'Return on Assets', value: returnOnAssets, status: getStatus('returnOnAssets', returnOnAssets) });
+
+    return ratios;
+  } catch (err) {
+    console.error('Ratio calculation error:', err);
+    return [];
+  }
+};
