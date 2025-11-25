@@ -208,8 +208,13 @@ function App() {
     const asOfDate = latest.toISOString().split('T')[0];
 
     // Calculate ratios
-    const ratios = calculateFinancialRatios(allAccounts, allEntries, asOfDate);
-    console.log('Calculated ratios:', ratios);
+// TEMPORARY DEBUG — DELETE AFTER TESTING
+const ratios = [
+  { name: 'Net Profit Margin', value: 0.08, status: 'yellow' },
+  { name: 'Current Ratio', value: 2.0, status: 'green' },
+  { name: 'Debt-to-Equity', value: 3.5, status: 'red' }
+]; 
+   console.log('Calculated ratios:', ratios);
     setFinancialRatios(ratios);
 
     // Build notifications
