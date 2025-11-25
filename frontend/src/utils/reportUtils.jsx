@@ -39,12 +39,6 @@ export const computeAccountBalanceAsOf = (account, approvedEntriesThroughDate) =
 
 /**
  * Generates a financial report based on type, accounts, journal entries, and date(s).
- * 
- * Supported report types:
- * - 'Trial Balance'
- * - 'Income Statement'
- * - 'Balance Sheet'
- * - 'Retained Earnings Statement'
  */
 export const generateFinancialReport = (reportType, accounts, journalEntries, date, dateRange = null) => {
   // Determine the report date(s)
@@ -77,9 +71,6 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
     accountBalances[acc.id] = balance;
     return { ...acc, balance };
   });
-
-  // Helper: safe balance lookup
-  const getBalance = (id) => accountBalances[id] || 0;
 
   // Classify accounts
   const assets = enrichedAccounts.filter(a => a.category === 'Assets');
@@ -154,11 +145,10 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
 
     case 'Retained Earnings Statement':
       reportData.title = 'Statement of Retained Earnings';
-      // For this sprint, assume beginning retained earnings = 0
-      const beginningRetained = 0;
+      const beginningRetained = 0; // Simplified for scope
       const netIncomeForPeriod = reportData.meta?.netIncome || 
         (revenue.reduce((s,a)=>s+a.balance,0) - expenses.reduce((s,a)=>s+a.balance,0));
-      const dividends = 0; // Not implemented in scope
+      const dividends = 0; 
       const endingRetained = beginningRetained + netIncomeForPeriod - dividends;
 
       reportData.rows = [
@@ -221,21 +211,44 @@ export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => 
     const netProfitMargin = safeDivide(netIncome, totalRevenue);
     const returnOnAssets = safeDivide(netIncome, totalAssets);
 
-    // Status logic
+    // Revised Logic
     const getStatus = (name, value) => {
       if (value == null || isNaN(value)) return 'gray';
-      const ranges = {
-        currentRatio: { g: [1.5, 3.0], y: [1.0, 3.5] },
-        quickRatio: { g: [1.0, 2.0], y: [0.8, 2.5] },
-        debtToEquity: { g: [0, 1.0], y: [1.0, 2.0] },
-        netProfitMargin: { g: [0.1, 1.0], y: [0.05, 0.1] },
-        returnOnAssets: { g: [0.05, 1.0], y: [0.02, 0.05] },
-      };
-      const r = ranges[name];
-      if (!r) return 'gray';
-      if (value >= r.g[0] && value <= r.g[1]) return 'green';
-      if (value >= r.y[0] && value <= r.y[1]) return 'yellow';
-      return 'red';
+      
+      switch (name) {
+        case 'currentRatio':
+          // Good: > 1.5 | Warning: 1.0 - 1.5 | Bad: < 1.0
+          if (value >= 1.5) return 'green';
+          if (value >= 1.0) return 'yellow';
+          return 'red';
+          
+        case 'quickRatio':
+          // Good: > 1.0 | Warning: 0.8 - 1.0 | Bad: < 0.8
+          if (value >= 1.0) return 'green';
+          if (value >= 0.8) return 'yellow';
+          return 'red';
+          
+        case 'debtToEquity':
+          // Good: < 1.0 | Warning: 1.0 - 2.0 | Bad: > 2.0
+          if (value <= 1.0) return 'green';
+          if (value <= 2.0) return 'yellow';
+          return 'red';
+          
+        case 'netProfitMargin':
+          // Good: > 10% | Warning: 5% - 10% | Bad: < 5%
+          if (value >= 0.10) return 'green';
+          if (value >= 0.05) return 'yellow';
+          return 'red';
+          
+        case 'returnOnAssets':
+          // Good: > 5% | Warning: 1% - 5% | Bad: < 1%
+          if (value >= 0.05) return 'green';
+          if (value >= 0.01) return 'yellow';
+          return 'red';
+          
+        default:
+          return 'gray';
+      }
     };
 
     const ratios = [];
