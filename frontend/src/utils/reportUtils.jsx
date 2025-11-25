@@ -39,12 +39,6 @@ export const computeAccountBalanceAsOf = (account, approvedEntriesThroughDate) =
 
 /**
  * Generates a financial report based on type, accounts, journal entries, and date(s).
- * 
- * Supported report types:
- * - 'Trial Balance'
- * - 'Income Statement'
- * - 'Balance Sheet'
- * - 'Retained Earnings Statement'
  */
 export const generateFinancialReport = (reportType, accounts, journalEntries, date, dateRange = null) => {
   // Determine the report date(s)
@@ -77,9 +71,6 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
     accountBalances[acc.id] = balance;
     return { ...acc, balance };
   });
-
-  // Helper: safe balance lookup
-  const getBalance = (id) => accountBalances[id] || 0;
 
   // Classify accounts
   const assets = enrichedAccounts.filter(a => a.category === 'Assets');
@@ -154,11 +145,10 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
 
     case 'Retained Earnings Statement':
       reportData.title = 'Statement of Retained Earnings';
-      // For this sprint, assume beginning retained earnings = 0
-      const beginningRetained = 0;
+      const beginningRetained = 0; // Simplified for scope
       const netIncomeForPeriod = reportData.meta?.netIncome || 
         (revenue.reduce((s,a)=>s+a.balance,0) - expenses.reduce((s,a)=>s+a.balance,0));
-      const dividends = 0; // Not implemented in scope
+      const dividends = 0; 
       const endingRetained = beginningRetained + netIncomeForPeriod - dividends;
 
       reportData.rows = [
@@ -175,4 +165,102 @@ export const generateFinancialReport = (reportType, accounts, journalEntries, da
   }
 
   return reportData;
+};
+
+/**
+ * Calculates key financial ratios as of a given date using only approved journal entries.
+ */
+export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => {
+  if (!asOfDate) return [];
+
+  try {
+    const incomeStmt = generateFinancialReport('Income Statement', accounts, journalEntries, asOfDate);
+    const balanceSheet = generateFinancialReport('Balance Sheet', accounts, journalEntries, asOfDate);
+
+    const { netIncome, totalRevenue } = incomeStmt.meta;
+    const { totalAssets, totalLiabilities, totalEquity } = balanceSheet.meta;
+
+    // Helper to find balance by account name (case-insensitive)
+    const findBalanceByName = (name) => {
+      const account = accounts.find(acc => 
+        acc.name.toLowerCase().includes(name.toLowerCase())
+      );
+      if (!account) return 0;
+      return computeAccountBalanceAsOf(
+        account, 
+        getApprovedEntriesThroughDate(journalEntries, asOfDate)
+      );
+    };
+
+    // Estimate current assets/liabilities using common account names
+    const cash = findBalanceByName('Cash') || 0;
+    const receivables = findBalanceByName('Receivable') || 0;
+    const inventory = findBalanceByName('Inventory') || 0;
+    const payables = findBalanceByName('Payable') || 0;
+    const shortTermDebt = findBalanceByName('Short') || findBalanceByName('Current Liabilities') || 0;
+
+    const currentAssets = cash + receivables + inventory;
+    const currentLiabilities = payables + shortTermDebt;
+
+    // Calculate ratios (avoid division by zero)
+    const safeDivide = (num, den) => (den !== 0 ? num / den : null);
+
+    const currentRatio = safeDivide(currentAssets, currentLiabilities);
+    const quickRatio = safeDivide(cash + receivables, currentLiabilities);
+    const debtToEquity = safeDivide(totalLiabilities, totalEquity);
+    const netProfitMargin = safeDivide(netIncome, totalRevenue);
+    const returnOnAssets = safeDivide(netIncome, totalAssets);
+
+    // Revised Logic
+    const getStatus = (name, value) => {
+      if (value == null || isNaN(value)) return 'gray';
+      
+      switch (name) {
+        case 'currentRatio':
+          // Good: > 1.5 | Warning: 1.0 - 1.5 | Bad: < 1.0
+          if (value >= 1.5) return 'green';
+          if (value >= 1.0) return 'yellow';
+          return 'red';
+          
+        case 'quickRatio':
+          // Good: > 1.0 | Warning: 0.8 - 1.0 | Bad: < 0.8
+          if (value >= 1.0) return 'green';
+          if (value >= 0.8) return 'yellow';
+          return 'red';
+          
+        case 'debtToEquity':
+          // Good: < 1.0 | Warning: 1.0 - 2.0 | Bad: > 2.0
+          if (value <= 1.0) return 'green';
+          if (value <= 2.0) return 'yellow';
+          return 'red';
+          
+        case 'netProfitMargin':
+          // Good: > 10% | Warning: 5% - 10% | Bad: < 5%
+          if (value >= 0.10) return 'green';
+          if (value >= 0.05) return 'yellow';
+          return 'red';
+          
+        case 'returnOnAssets':
+          // Good: > 5% | Warning: 1% - 5% | Bad: < 1%
+          if (value >= 0.05) return 'green';
+          if (value >= 0.01) return 'yellow';
+          return 'red';
+          
+        default:
+          return 'gray';
+      }
+    };
+
+    const ratios = [];
+    if (currentRatio !== null) ratios.push({ name: 'Current Ratio', value: currentRatio, status: getStatus('currentRatio', currentRatio) });
+    if (quickRatio !== null) ratios.push({ name: 'Quick Ratio', value: quickRatio, status: getStatus('quickRatio', quickRatio) });
+    if (debtToEquity !== null) ratios.push({ name: 'Debt-to-Equity', value: debtToEquity, status: getStatus('debtToEquity', debtToEquity) });
+    if (netProfitMargin !== null) ratios.push({ name: 'Net Profit Margin', value: netProfitMargin, status: getStatus('netProfitMargin', netProfitMargin) });
+    if (returnOnAssets !== null) ratios.push({ name: 'Return on Assets', value: returnOnAssets, status: getStatus('returnOnAssets', returnOnAssets) });
+
+    return ratios;
+  } catch (err) {
+    console.error('Ratio calculation error:', err);
+    return [];
+  }
 };
