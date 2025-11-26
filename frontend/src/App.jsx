@@ -305,7 +305,7 @@ function App() {
     if (userData.role === 'Admin' || userData.role === 'Administrator') {
       setPage('users');
     } else {
-      setPage('userhome');
+      setPage('home');
     }
   };
 
@@ -392,11 +392,11 @@ function App() {
 
         alert(
           `SUCCESS! User Approved.\n\n` +
-            `An email with the following details has been 'sent' to ${request.email}:\n\n` +
-            `LOGIN LINK: ${loginLink}\n` +
-            `TEMPORARY USERNAME: ${username}\n` +
-            `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
-            `The user should use these credentials to log in for the first time.`
+          `An email with the following details has been 'sent' to ${request.email}:\n\n` +
+          `LOGIN LINK: ${loginLink}\n` +
+          `TEMPORARY USERNAME: ${username}\n` +
+          `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
+          `The user should use these credentials to log in for the first time.`
         );
       } else {
         console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
@@ -607,7 +607,7 @@ function App() {
   }
 
   const navItems = [
-    { id: 'userhome', label: 'Home', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
+    { id: 'home', label: 'Home', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
     { id: 'dashboard', label: 'Dashboard', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
     { id: 'accounts', label: 'Chart of Accounts', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
     { id: 'journal', label: 'Journal Entries', roles: ['Admin', 'Administrator', 'Manager', 'Accountant'] },
@@ -638,9 +638,8 @@ function App() {
                     key={item.id}
                     onClick={() => setPage(item.id)}
                     title={`Go to ${item.label}`}
-                    className={`px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 ${
-                      page === item.id ? 'bg-emerald-900' : ''
-                    }`}
+                    className={`px-3 py-2 rounded transition duration-200 text-sm font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''
+                      }`}
                   >
                     {item.label}
                   </button>
@@ -713,9 +712,8 @@ function App() {
                     setIsMobileMenuOpen(false);
                   }}
                   title={`Go to ${item.label}`}
-                  className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${
-                    page === item.id ? 'bg-emerald-900' : ''
-                  }`}
+                  className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-emerald-700 ${page === item.id ? 'bg-emerald-900' : ''
+                    }`}
                 >
                   {item.label}
                 </button>
@@ -735,16 +733,15 @@ function App() {
       </header>
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex justify-between items-center p-4 bg-white border-b-2 border-gray-200">
-          <h1 className="text-2xl font-semibold text-gray-800 capitalize">
+          <h1 className="text-2xl font-semibold text-gray-800 capitalize" style={{ marginLeft: '17px' }} >
             {page.replace(/([A-Z])/g, ' $1').trim()}
           </h1>
         </header>
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
           {notification && (
             <div
-              className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${
-                notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'
-              }`}
+              className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'
+                }`}
             >
               <span>{notification.message}</span>
               <button
@@ -756,7 +753,7 @@ function App() {
               </button>
             </div>
           )}
-          {page === 'userhome' && (
+          {page === 'home' && (
             <UserHome
               user={user}
               setPage={setPage}
