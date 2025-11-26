@@ -12,6 +12,7 @@ import FinancialReportsPage from './components/financialReports/FinancialReports
 import { IconLogo, IconUser } from './components/ui/Icons';
 import UserHome from './components/UserHome';
 import Profile from './components/Profile';
+import { computeAccountBalances } from './utils/accountUtils';
 import { generateFinancialReport, calculateFinancialRatios } from './utils/reportUtils';
 // eslint-disable-next-line
 import Modal from './components/ui/Modal';
@@ -233,6 +234,19 @@ function App() {
 
     setCustomNotifications(notifs);
   }, [allAccounts, journalEntries, adjustingJournalEntries, user?.passwordExpires]);
+
+    const accountsWithBalances = useMemo(() => {
+    if (!allAccounts.length) return [];
+    
+    const allEntries = [...journalEntries, ...adjustingJournalEntries];
+    
+    const balanceMap = computeAccountBalances(allAccounts, allEntries);
+    
+    return allAccounts.map(acc => ({
+      ...acc,
+      balance: balanceMap[acc.id] !== undefined ? balanceMap[acc.id] : (acc.initialBalance || 0)
+    }));
+  }, [allAccounts, journalEntries, adjustingJournalEntries]);
 
   const pendingEntriesCount = useMemo(() => {
     const pendingRegular = journalEntries.filter((entry) => entry.status === 'Pending Review').length;
@@ -617,7 +631,8 @@ function App() {
     { id: 'help', label: 'Help', roles: ['user', 'Admin', 'Administrator', 'Manager', 'Accountant'] },
   ];
   const allowedNavItems = navItems.filter((item) => user.role && item.roles.includes(user.role));
-  const selectedLedgerAccount = allAccounts.find((acc) => acc.id === selectedLedgerAccountId);
+
+  const selectedLedgerAccount = accountsWithBalances.find((acc) => acc.id === selectedLedgerAccountId);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 font-sans">
@@ -778,7 +793,7 @@ function App() {
               currentUser={user}
               setPage={setPage}
               setSelectedLedgerAccountId={setSelectedLedgerAccountId}
-              allAccounts={allAccounts}
+              allAccounts={accountsWithBalances}
               setAllAccounts={setAllAccounts}
             />
           )}
@@ -797,7 +812,7 @@ function App() {
           {page === 'journal' && (
             <JournalEntriesPage
               currentUser={user}
-              allAccounts={allAccounts}
+              allAccounts={accountsWithBalances}
               journalEntries={journalEntries}
               addJournalEntry={addJournalEntry}
               setPage={setPage}

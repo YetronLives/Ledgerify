@@ -1,7 +1,3 @@
-/**
- * Utility functions to generate financial reports for Ledgerify (Sprint 4)
- * All reports are based ONLY on APPROVED journal entries.
- */
 
 /**
  * Filters journal entries that are Approved and occurred on or before a given date.
@@ -178,40 +174,62 @@ export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => 
     const balanceSheet = generateFinancialReport('Balance Sheet', accounts, journalEntries, asOfDate);
 
     const { netIncome, totalRevenue } = incomeStmt.meta;
-    const { totalAssets, totalLiabilities, totalEquity } = balanceSheet.meta;
+    const { totalAssets, totalLiabilities } = balanceSheet.meta;
+    const derivedEquity = totalAssets - totalLiabilities;
+    const approvedEntries = getApprovedEntriesThroughDate(journalEntries, asOfDate);
 
-    // Helper to find balance by account name (case-insensitive)
-    const findBalanceByName = (name) => {
-      const account = accounts.find(acc => 
-        acc.name.toLowerCase().includes(name.toLowerCase())
-      );
-      if (!account) return 0;
-      return computeAccountBalanceAsOf(
-        account, 
-        getApprovedEntriesThroughDate(journalEntries, asOfDate)
-      );
+    const getSumBySubcategory = (category, subString) => {
+        return accounts
+            .filter(acc => 
+                acc.category === category && 
+                acc.subcategory && 
+                acc.subcategory.toLowerCase().includes(subString.toLowerCase())
+            )
+            .reduce((sum, acc) => sum + computeAccountBalanceAsOf(acc, approvedEntries), 0);
     };
 
-    // Estimate current assets/liabilities using common account names
-    const cash = findBalanceByName('Cash') || 0;
-    const receivables = findBalanceByName('Receivable') || 0;
-    const inventory = findBalanceByName('Inventory') || 0;
-    const payables = findBalanceByName('Payable') || 0;
-    const shortTermDebt = findBalanceByName('Short') || findBalanceByName('Current Liabilities') || 0;
+    const getSumByName = (keywords) => {
+      const matchingAccounts = accounts.filter(acc => 
+        keywords.some(k => acc.name.toLowerCase().includes(k.toLowerCase()))
+      );
+      return matchingAccounts.reduce((sum, acc) => {
+        return sum + computeAccountBalanceAsOf(acc, approvedEntries);
+      }, 0);
+    };
 
-    const currentAssets = cash + receivables + inventory;
-    const currentLiabilities = payables + shortTermDebt;
+    // --- Data Gathering ---
+    
+    // Current Assets
+    let currentAssets = getSumBySubcategory('Assets', 'current');
+    if (currentAssets === 0) {
+        currentAssets = getSumByName(['Cash', 'Bank', 'Receivable', 'Inventory', 'Stock', 'Prepaid']);
+    }
 
-    // Calculate ratios (avoid division by zero)
+    // Current Liabilities
+    let currentLiabilities = getSumBySubcategory('Liabilities', 'current');
+    if (currentLiabilities === 0) {
+        currentLiabilities = getSumByName(['Payable', 'Card', 'Short', 'Accrued', 'Tax', 'Due', 'Current']);
+    }
+
+    // Quick Assets: Cash + Bank + Receivables (Exclude Inventory/Prepaid)
+    let quickAssets = getSumBySubcategory('Assets', 'Cash') + 
+                      getSumBySubcategory('Assets', 'Receivable');
+
+    // If that returns 0, fallback to searching by Name with more keywords
+    if (quickAssets === 0) {
+        quickAssets = getSumByName(['Cash', 'Bank', 'Receivable', 'Checking', 'Savings', 'Deposit']);
+    }
+
+    // --- Calculations ---
     const safeDivide = (num, den) => (den !== 0 ? num / den : null);
 
     const currentRatio = safeDivide(currentAssets, currentLiabilities);
-    const quickRatio = safeDivide(cash + receivables, currentLiabilities);
-    const debtToEquity = safeDivide(totalLiabilities, totalEquity);
+    const quickRatio = safeDivide(quickAssets, currentLiabilities);
+    const debtToEquity = safeDivide(totalLiabilities, derivedEquity);
     const netProfitMargin = safeDivide(netIncome, totalRevenue);
     const returnOnAssets = safeDivide(netIncome, totalAssets);
 
-    // Revised Logic
+    // --- Status Logic ---
     const getStatus = (name, value) => {
       if (value == null || isNaN(value)) return 'gray';
       
@@ -252,11 +270,41 @@ export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => 
     };
 
     const ratios = [];
-    if (currentRatio !== null) ratios.push({ name: 'Current Ratio', value: currentRatio, status: getStatus('currentRatio', currentRatio) });
-    if (quickRatio !== null) ratios.push({ name: 'Quick Ratio', value: quickRatio, status: getStatus('quickRatio', quickRatio) });
-    if (debtToEquity !== null) ratios.push({ name: 'Debt-to-Equity', value: debtToEquity, status: getStatus('debtToEquity', debtToEquity) });
-    if (netProfitMargin !== null) ratios.push({ name: 'Net Profit Margin', value: netProfitMargin, status: getStatus('netProfitMargin', netProfitMargin) });
-    if (returnOnAssets !== null) ratios.push({ name: 'Return on Assets', value: returnOnAssets, status: getStatus('returnOnAssets', returnOnAssets) });
+    
+    ratios.push({ 
+      name: 'Current Ratio', 
+      value: currentRatio, 
+      status: getStatus('currentRatio', currentRatio),
+      isPercentage: false 
+    });
+    
+    ratios.push({ 
+      name: 'Quick Ratio', 
+      value: quickRatio, 
+      status: getStatus('quickRatio', quickRatio),
+      isPercentage: false 
+    });
+    
+    ratios.push({ 
+      name: 'Debt-to-Equity', 
+      value: debtToEquity, 
+      status: getStatus('debtToEquity', debtToEquity),
+      isPercentage: false 
+    });
+    
+    ratios.push({ 
+      name: 'Net Profit Margin', 
+      value: netProfitMargin, 
+      status: getStatus('netProfitMargin', netProfitMargin),
+      isPercentage: true 
+    });
+    
+    ratios.push({ 
+      name: 'Return on Assets', 
+      value: returnOnAssets, 
+      status: getStatus('returnOnAssets', returnOnAssets),
+      isPercentage: true 
+    });
 
     return ratios;
   } catch (err) {

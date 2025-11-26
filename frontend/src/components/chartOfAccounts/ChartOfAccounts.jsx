@@ -274,12 +274,8 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
     }
   };
 
-  const handleDeleteAccount = (accountNumber) => {
-    setAccounts(prev => prev.filter(acc => acc.number !== accountNumber));
-    closeAccountModal();
-  };
 
-  // Filtering logic
+// Filtering logic
   const filteredAccounts = accounts.filter(acc => {
     const searchMatch = acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || acc.number.toString().includes(searchTerm);
     const categoryMatch = categoryFilter === 'all' || acc.category === categoryFilter;
@@ -296,6 +292,34 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
 
     return searchMatch && categoryMatch && normalSideMatch && balanceMatch;
   });
+
+  
+const handleDeleteAccount = async () => {
+    if (!selectedAccount?.id) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/chart-of-accounts/${selectedAccount.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete account');
+      }
+
+      setAccounts(prev => prev.filter(acc => acc.id !== selectedAccount.id));
+
+      if (setAllAccounts) {
+        setAllAccounts(prev => prev.filter(acc => acc.id !== selectedAccount.id));
+      }
+
+      closeAccountModal();
+
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert(`Error deleting account: ${error.message}`);
+    }
+  };
 
   const resetFilters = () => {
     setSearchTerm('');
@@ -361,7 +385,7 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
           {modalView === 'delete' && (
             <DeleteConfirmation
               accountName={selectedAccount.name}
-              onConfirm={() => handleDeleteAccount(selectedAccount.number)}
+              onConfirm={handleDeleteAccount}
               onCancel={() => setModalView('view')}
             />
           )}

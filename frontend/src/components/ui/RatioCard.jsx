@@ -1,8 +1,7 @@
-// src/components/ui/RatioCard.jsx
 import React from 'react';
 
 const RatioCard = ({ ratio }) => {
-  const { name, value, status } = ratio;
+  const { name, value, status, isPercentage } = ratio;
 
   const statusConfig = {
     green: { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500', label: 'Good' },
@@ -13,12 +12,21 @@ const RatioCard = ({ ratio }) => {
 
   const config = statusConfig[status] || statusConfig.gray;
 
+  const formatValue = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    // Multiply by 100 for percentage display
+    if (isPercentage) {
+      return `${(val * 100).toFixed(1)}%`;
+    }
+    return val.toFixed(2);
+  };
+
   return (
     <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center">
       <div>
         <h4 className="font-semibold text-gray-800">{name}</h4>
         <p className="text-2xl font-bold mt-1 text-gray-900">
-          {value !== null && value !== undefined && !isNaN(value) ? value.toFixed(2) : '—'}
+          {formatValue(value)}
         </p>
       </div>
       <div className="flex flex-col items-end">
