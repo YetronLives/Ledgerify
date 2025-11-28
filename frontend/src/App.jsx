@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect, useMemo } from 'react';
+import React, { useState, useId, useEffect, useMemo, useRef } from 'react'; 
 import LoginScreen from './components/auth/LoginScreen';
 import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
@@ -119,6 +119,9 @@ function App() {
   const uniqueSecurityQuestions = [...new Set(allSecurityQuestions)];
   const uniqueId = useId();
 
+  // Add ref for scrollable content
+  const mainContentRef = useRef(null);
+
   // State
   const [users, setUsers] = useState({});
   const [allAccounts, setAllAccounts] = useState([]);
@@ -135,6 +138,13 @@ function App() {
   const [selectedLedgerAccountId, setSelectedLedgerAccountId] = useState(null);
   const [selectedJournalEntryId, setSelectedJournalEntryId] = useState(null);
 
+  // Scroll the main content area to top on page change
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
+  }, [page]);
+  
   // --- Fetch initial data from backend ---
   useEffect(() => {
     fetch('http://localhost:5000/users')
@@ -752,7 +762,11 @@ function App() {
             {page.replace(/([A-Z])/g, ' $1').trim()}
           </h1>
         </header>
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
+        {/* Attach ref here */}
+        <main
+          ref={mainContentRef}
+          className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8"
+        >
           {notification && (
             <div
               className={`p-4 mb-4 rounded-lg text-white font-semibold flex justify-between items-center ${notification.type === 'error' ? 'bg-red-600' : 'bg-yellow-600'
