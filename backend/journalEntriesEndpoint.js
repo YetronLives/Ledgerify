@@ -33,6 +33,109 @@ const upload = multer({
 });
 
 class JournalEntriesEndpoint {
+  // Helper function to update account debit/credit totals in chart_of_accounts table
+  static async updateAccountTotals(journalEntryId, shouldAdd = true) {
+    try {
+      // Get all journal lines for this entry
+      const { data: journalLines, error: linesError } = await supabase
+        .from('journal_lines')
+        .select('account_id, debit, credit')
+        .eq('journal_entry_id', journalEntryId);
+
+      if (linesError) {
+        console.error('Error fetching journal lines:', linesError);
+        return { success: false, error: linesError.message };
+      }
+
+      if (!journalLines || journalLines.length === 0) {
+        return { success: true, message: 'No journal lines found' };
+      }
+
+      // Group by account_id and sum debits/credits
+      const accountUpdates = {};
+      journalLines.forEach(line => {
+        if (!accountUpdates[line.account_id]) {
+          accountUpdates[line.account_id] = { debit: 0, credit: 0 };
+        }
+        accountUpdates[line.account_id].debit += parseFloat(line.debit || 0);
+        accountUpdates[line.account_id].credit += parseFloat(line.credit || 0);
+      });
+
+      // Update each account's debit/credit totals and balance
+      for (const [accountId, totals] of Object.entries(accountUpdates)) {
+        // Get current account values including current balance and normal_side
+        const { data: account, error: accountError } = await supabase
+          .from('chart_of_accounts')
+          .select('debit, credit, balance, normal_side')
+          .eq('account_id', accountId)
+          .single();
+
+        if (accountError) {
+          console.error(`Error fetching account ${accountId}:`, accountError);
+          continue; // Skip this account but continue with others
+        }
+
+        // Calculate new debit/credit totals
+        const currentDebit = parseFloat(account.debit || 0);
+        const currentCredit = parseFloat(account.credit || 0);
+        const currentBalance = parseFloat(account.balance || 0);
+        const newDebit = shouldAdd 
+          ? currentDebit + totals.debit 
+          : Math.max(0, currentDebit - totals.debit);
+        const newCredit = shouldAdd 
+          ? currentCredit + totals.credit 
+          : Math.max(0, currentCredit - totals.credit);
+
+        // Calculate balance change based on normal side
+        // For each debit/credit in this transaction, apply its effect to balance
+        const normalSide = account.normal_side?.toLowerCase();
+        let balanceChange = 0;
+
+        if (shouldAdd) {
+          // Adding transaction: apply debits and credits
+          if (normalSide === 'debit') {
+            // For Debit accounts: debits add to balance, credits subtract from balance
+            balanceChange = totals.debit - totals.credit;
+          } else if (normalSide === 'credit') {
+            // For Credit accounts: credits add to balance, debits subtract from balance
+            balanceChange = totals.credit - totals.debit;
+          }
+        } else {
+          // Removing transaction (rejection): reverse the effect
+          if (normalSide === 'debit') {
+            // Reverse: subtract what was added, add what was subtracted
+            balanceChange = -(totals.debit - totals.credit);
+          } else if (normalSide === 'credit') {
+            // Reverse: subtract what was added, add what was subtracted
+            balanceChange = -(totals.credit - totals.debit);
+          }
+        }
+
+        // Calculate new balance by applying the change to current balance
+        const newBalance = currentBalance + balanceChange;
+
+        // Update the account with debit, credit, and balance
+        const { error: updateError } = await supabase
+          .from('chart_of_accounts')
+          .update({ 
+            debit: newDebit,
+            credit: newCredit,
+            balance: newBalance
+          })
+          .eq('account_id', accountId);
+
+        if (updateError) {
+          console.error(`Error updating account ${accountId}:`, updateError);
+        }
+      }
+
+      return { success: true, message: 'Account totals updated successfully' };
+    } catch (err) {
+      console.error('Error updating account totals:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   // Create journal entry with journal lines
   static async createJournalEntry(req, res) {
     const { user_id, description, debits, credits, attachments } = req.body;
@@ -162,6 +265,15 @@ class JournalEntriesEndpoint {
         console.error('Failed to log journal entry creation:', logResult.error);
       }
 
+      // Update account debit/credit totals if entry is auto-approved
+      if (status === 'Approved') {
+        const updateResult = await this.updateAccountTotals(journalEntry.journal_entry_id, true);
+        if (!updateResult.success) {
+          console.error('Failed to update account totals:', updateResult.error);
+          // Don't fail the request, just log the error
+        }
+      }
+
       // Transform to frontend format
       const debitsFormatted = debits.map(d => ({
         accountId: d.accountId,
@@ -258,6 +370,21 @@ class JournalEntriesEndpoint {
       );
       if (!logResult.success) {
         console.error('Failed to log journal entry status update:', logResult.error);
+      }
+
+      // Update account debit/credit totals based on status change
+      if (beforeData.status !== 'Approved' && status === 'Approved') {
+        // Entry is being approved - add to account totals
+        const updateResult = await this.updateAccountTotals(entryId, true);
+        if (!updateResult.success) {
+          console.error('Failed to update account totals on approval:', updateResult.error);
+        }
+      } else if (beforeData.status === 'Approved' && status !== 'Approved') {
+        // Entry was approved but is now being rejected/pending - subtract from account totals
+        const updateResult = await this.updateAccountTotals(entryId, false);
+        if (!updateResult.success) {
+          console.error('Failed to update account totals on rejection:', updateResult.error);
+        }
       }
 
       return res.json({

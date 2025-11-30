@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect, useMemo } from 'react';
+import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
 import LoginScreen from './components/auth/LoginScreen';
 import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
@@ -100,9 +100,9 @@ const mapAccountData = (acc) => ({
   category: acc.category,
   subcategory: acc.subcategory,
   initialBalance: acc.initial_balance,
-  balance: acc.balance,
-  debit: acc.debit,
-  credit: acc.credit,
+  balance: acc.balance, // This will be overridden by computed balance in accountsWithBalances
+  debit: 0,
+  credit: 0, 
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
@@ -190,6 +190,22 @@ function App() {
       .catch((err) => console.error('Failed to fetch adjusting journal entries:', err));
   }, []);
 
+  // --- Centralized function to refresh accounts from backend ---
+  const refreshAccounts = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:5000/chart-of-accounts');
+      const data = await response.json();
+      if (response.ok && data.accounts) {
+        setAllAccounts(data.accounts.map(mapAccountData));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to refresh accounts:', error);
+      return false;
+    }
+  }, []);
+
   // --- Calculate financial ratios and notifications ---
   useEffect(() => {
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
@@ -240,11 +256,13 @@ function App() {
     
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
     
-    const balanceMap = computeAccountBalances(allAccounts, allEntries);
+    const { balances, debits, credits } = computeAccountBalances(allAccounts, allEntries);
     
     return allAccounts.map(acc => ({
       ...acc,
-      balance: balanceMap[acc.id] !== undefined ? balanceMap[acc.id] : (acc.initialBalance || 0)
+      balance: balances[acc.id] !== undefined ? balances[acc.id] : (acc.initialBalance || 0),
+      debit: debits[acc.id] !== undefined ? debits[acc.id] : 0,
+      credit: credits[acc.id] !== undefined ? credits[acc.id] : 0
     }));
   }, [allAccounts, journalEntries, adjustingJournalEntries]);
 
@@ -795,6 +813,7 @@ function App() {
               setSelectedLedgerAccountId={setSelectedLedgerAccountId}
               allAccounts={accountsWithBalances}
               setAllAccounts={setAllAccounts}
+              refreshAccounts={refreshAccounts}
             />
           )}
           {page === 'ledger' && (

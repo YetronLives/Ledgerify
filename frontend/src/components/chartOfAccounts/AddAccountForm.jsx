@@ -1,60 +1,19 @@
 // src/components/AddAccountForm.jsx
 import React, { useState, useRef } from 'react';
-import { IconLoading } from '../ui/Icons';
 import DateInput from '../ui/DateInput'; // ✅ Import DateInput
 
-function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
-    const [isLoading, setIsLoading] = useState(false);
+function AddAccountForm({ onSubmit, onCancel, error }) {
     const [creationDate, setCreationDate] = useState(new Date()); // Default to today (Oct 13, 2025 in your calendar)
     const formRef = useRef(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
 
         const formData = new FormData(formRef.current);
         const accountData = Object.fromEntries(formData.entries());
 
-        try {
-            const response = await fetch('http://localhost:5000/CreateChartOfAccount', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: currentUser.id,
-                    account_name: accountData.name,
-                    account_number: accountData.number,
-                    account_description: accountData.description,
-                    normal_side: accountData.normalSide.toLowerCase(),
-                    category: accountData.category,
-                    subcategory: accountData.subcategory,
-                    initial_balance: parseFloat(accountData.initialBalance) || 0,
-                    order_number: parseInt(accountData.order) || 0,
-                    statement: accountData.statement,
-                    comment: accountData.comment || '',
-                    is_active: true,
-                    // Optional: send date to backend if your API supports it
-                    // created_at: creationDate.toISOString()
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create account');
-            }
-
-            console.log('Account created successfully:', data);
-            alert('Account created successfully!');
+        // Pass data to parent component to handle API call and refresh
             onSubmit(accountData);
-            
-        } catch (error) {
-            console.error('Error creating account:', error);
-            alert('Failed to create account: ' + error.message);
-        } finally {
-            setIsLoading(false);
-        }
     };
 
     return (
@@ -152,18 +111,15 @@ function AddAccountForm({ onSubmit, onCancel, error, currentUser }) {
                 <button 
                     type="button" 
                     onClick={onCancel} 
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
                     Cancel
                 </button>
                 <button 
                     type="submit" 
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                    {isLoading && <IconLoading className="w-5 h-5" />}
-                    <span>Add Account</span>
+                    Add Account
                 </button>
             </div>
         </form>
