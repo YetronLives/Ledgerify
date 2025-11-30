@@ -62,7 +62,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 ### Usability Features 
 
-- Built-in Help: Searchable help system integrated within the app. 
+- Built-in Help: Help system integrated within the app. 
 
 - Navigation: A clear table of contents to access modules quickly. 
 
