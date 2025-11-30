@@ -12,10 +12,17 @@ const REPORT_TYPES = [
 ];
 
 const FinancialReportsPage = ({ accounts, journalEntries, currentUser, onBack }) => {
+  // Default end date to today (as Date object for DateInput component)
+  const getTodayDate = () => {
+    const today = new Date();
+    // Normalize to midnight UTC to match date-only comparisons
+    return new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0));
+  };
+
   const [reportType, setReportType] = useState('Trial Balance');
   const [date, setDate] = useState(null); // For Balance Sheet
   const [startDate, setStartDate] = useState(null); // For others
-  const [endDate, setEndDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(getTodayDate());
   const [generatedReport, setGeneratedReport] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -50,12 +57,29 @@ const FinancialReportsPage = ({ accounts, journalEntries, currentUser, onBack })
 
     setIsGenerating(true);
     try {
+      // Convert dates to ISO strings (YYYY-MM-DD) for consistent handling in report generation
+      const formatDateForReport = (dateValue) => {
+        if (!dateValue) return null;
+        if (typeof dateValue === 'string') return dateValue;
+        if (dateValue instanceof Date) {
+          // Convert to YYYY-MM-DD format
+          const year = dateValue.getFullYear();
+          const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+          const day = String(dateValue.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        return dateValue;
+      };
+
       const report = generateFinancialReport(
         reportType,
         accounts,
         journalEntries,
-        isBalanceSheet ? date : null,
-        isBalanceSheet ? null : { start: startDate || new Date('1970-01-01'), end: endDate }
+        isBalanceSheet ? formatDateForReport(date) : null,
+        isBalanceSheet ? null : { 
+          start: formatDateForReport(startDate) || '1970-01-01', 
+          end: formatDateForReport(endDate) 
+        }
       );
       setGeneratedReport(report);
     } catch (err) {

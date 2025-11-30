@@ -30,7 +30,14 @@ const IconClear = ({ className }) => (
 // --- Helper: Format date as MM/DD/YYYY ---
 const formatDateDisplay = (date) => {
   if (!date) return '';
-  return date.toLocaleDateString('en-US', {
+  
+  // Handle both Date objects and date strings
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // Check if date is valid
+  if (isNaN(dateObj.getTime())) return '';
+  
+  return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

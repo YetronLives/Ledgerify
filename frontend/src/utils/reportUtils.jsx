@@ -1,12 +1,39 @@
 
 /**
+ * Normalizes a date to midnight (start of day) for consistent comparison.
+ */
+const normalizeDateToStartOfDay = (date) => {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Normalizes a date to end of day (23:59:59.999) for inclusive date range filtering.
+ */
+const normalizeDateToEndOfDay = (date) => {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+};
+
+/**
  * Filters journal entries that are Approved and occurred on or before a given date.
+ * Uses date normalization to ensure all entries on the cutoff date are included.
  */
 const getApprovedEntriesThroughDate = (journalEntries, date) => {
-  const cutoff = new Date(date);
-  return journalEntries.filter(je =>
-    je.status === 'Approved' && new Date(je.date) <= cutoff
-  );
+  // Normalize cutoff to end of day to include all entries on that date
+  const cutoff = normalizeDateToEndOfDay(date);
+  
+  return journalEntries.filter(je => {
+    if (je.status !== 'Approved') return false;
+    
+    // Normalize journal entry date to start of day for consistent comparison
+    const entryDate = normalizeDateToStartOfDay(je.date);
+    
+    // Entry is included if its date is <= cutoff date
+    return entryDate <= cutoff;
+  });
 };
 
 /**
