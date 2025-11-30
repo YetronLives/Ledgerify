@@ -1017,8 +1017,76 @@ function App() {
                 <br />
                 – Click the Help button anytime to come back here
               </p>
+                        <h2
+                style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  marginTop: '28px',
+                  marginBottom: '16px',
+                  color: '#2c3e50',
+                }}
+              >
+                📝 Journalizing & Adjusting Entries
+              </h2>
+              <p>
+                Create and manage journal entries using only accounts from the Chart of Accounts:
+                <br />
+                – Accountants can draft, attach source documents (PDF, Excel, images, etc.), and submit entries for approval.
+                <br />
+                – Managers review, approve, or reject entries—adding a comment if rejected.
+                <br />
+                – Approved entries automatically update the ledger and financial statements.
+                <br />
+                – Every journal must balance: total debits must equal total credits. Errors appear in red with clear messages to help you fix them.
+              </p>
+
+              <h2
+                style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  marginTop: '28px',
+                  marginBottom: '16px',
+                  color: '#2c3e50',
+                }}
+              >
+                📈 Financial Reports & Dashboard
+              </h2>
+              <p>
+                Managers can generate key financial statements—including Trial Balance, Income Statement, Balance Sheet, and Retained Earnings—for any date or date range. Reports can be saved, printed, or emailed directly from the app.
+              </p>
+              <p>
+                All users see a personalized dashboard on login, featuring:
+                <br />
+                – Real-time financial ratios color-coded for insight: green (healthy), yellow (caution), red (needs review).
+                <br />
+                – Alerts for pending actions, like journal entries awaiting your approval.
+              </p>
+
+              <h2
+                style={{
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  marginTop: '28px',
+                  marginBottom: '16px',
+                  color: '#2c3e50',
+                }}
+              >
+                🔗 Navigating Ledgers & Entries
+              </h2>
+              <p>
+                From any account in the Chart of Accounts, click to open its ledger. Each ledger entry includes:
+                <br />
+                – Date, description, debit, credit, and running balance
+                <br />
+                – A clickable Post Reference (PR) that takes you back to the original journal entry
+                <br />
+                – Support for filtering by date range or searching by amount and account
+              </p>
             </div>
+            
           )}
+
+
         </main>
       </div>
     </div>
