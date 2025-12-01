@@ -208,25 +208,28 @@ function App() {
 
   // --- Calculate financial ratios and notifications ---
   useEffect(() => {
+    // Always recalculate ratios when accounts or entries change
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
     const approvedEntries = allEntries.filter((e) => e.status === 'Approved');
 
+    // If no approved entries, still try to calculate ratios based on initial balances
+    // This ensures ratios update when accounts are added, even without journal entries
+    let asOfDate;
     if (approvedEntries.length === 0) {
-      setFinancialRatios([]);
-      setCustomNotifications([]);
-      return;
+      // Use today's date if no approved entries exist
+      asOfDate = new Date().toISOString().split('T')[0];
+    } else {
+      // Use latest approved entry date
+      const latest = approvedEntries.reduce(
+        (max, e) => (new Date(e.date) > max ? new Date(e.date) : max),
+        new Date(0)
+      );
+      asOfDate = latest.toISOString().split('T')[0];
     }
 
-    // Use latest approved entry date
-    const latest = approvedEntries.reduce(
-      (max, e) => (new Date(e.date) > max ? new Date(e.date) : max),
-      new Date(0)
-    );
-    const asOfDate = latest.toISOString().split('T')[0];
-
-    // Calculate ratios
+    // Calculate ratios (will return empty array if no data, but still runs)
     const ratios = calculateFinancialRatios(allAccounts, allEntries, asOfDate);
-    console.log('Calculated ratios:', ratios);
+    console.log('Calculated ratios:', ratios, 'for', allAccounts.length, 'accounts');
     setFinancialRatios(ratios);
 
     // Build notifications

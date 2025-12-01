@@ -205,6 +205,13 @@ export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => 
     const derivedEquity = totalAssets - totalLiabilities;
     const approvedEntries = getApprovedEntriesThroughDate(journalEntries, asOfDate);
 
+    // Helper to sum all accounts in a category
+    const getSumByCategory = (category) => {
+        return accounts
+            .filter(acc => acc.category === category)
+            .reduce((sum, acc) => sum + computeAccountBalanceAsOf(acc, approvedEntries), 0);
+    };
+
     const getSumBySubcategory = (category, subString) => {
         return accounts
             .filter(acc => 
@@ -226,19 +233,14 @@ export const calculateFinancialRatios = (accounts, journalEntries, asOfDate) => 
 
     // --- Data Gathering ---
     
-    // Current Assets
-    let currentAssets = getSumBySubcategory('Assets', 'current');
-    if (currentAssets === 0) {
-        currentAssets = getSumByName(['Cash', 'Bank', 'Receivable', 'Inventory', 'Stock', 'Prepaid']);
-    }
+    // Current Assets: Use ALL accounts in Assets category
+    const currentAssets = getSumByCategory('Assets');
 
-    // Current Liabilities
-    let currentLiabilities = getSumBySubcategory('Liabilities', 'current');
-    if (currentLiabilities === 0) {
-        currentLiabilities = getSumByName(['Payable', 'Card', 'Short', 'Accrued', 'Tax', 'Due', 'Current']);
-    }
+    // Current Liabilities: Use ALL accounts in Liabilities category
+    const currentLiabilities = getSumByCategory('Liabilities');
 
     // Quick Assets: Cash + Bank + Receivables (Exclude Inventory/Prepaid)
+    // Try to find by subcategory first, then fallback to name matching
     let quickAssets = getSumBySubcategory('Assets', 'Cash') + 
                       getSumBySubcategory('Assets', 'Receivable');
 
