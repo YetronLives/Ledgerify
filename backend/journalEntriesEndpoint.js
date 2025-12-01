@@ -255,41 +255,61 @@ class JournalEntriesEndpoint {
         return res.status(500).json({ error: 'Failed to create journal lines: ' + linesError.message });
       }
 
-      // Log the journal entry creation
-      const logResult = await EventLogger.logJournalEntryCreation(
-        journalEntry.journal_entry_id,
-        journalEntry,
-        user_id
-      );
-      if (!logResult.success) {
-        console.error('Failed to log journal entry creation:', logResult.error);
+      // Log the journal entry creation (non-blocking - don't fail if logging fails)
+      try {
+        const logResult = await EventLogger.logJournalEntryCreation(
+          journalEntry.journal_entry_id,
+          journalEntry,
+          user_id
+        );
+        if (!logResult.success) {
+          console.error('Failed to log journal entry creation:', logResult.error);
+        }
+      } catch (logError) {
+        console.error('Error in event logging (non-fatal):', logError);
+        // Continue execution even if logging fails
       }
 
-      // Update account debit/credit totals if entry is auto-approved
+      // Update account debit/credit totals if entry is auto-approved (non-blocking)
       if (status === 'Approved') {
-        const updateResult = await this.updateAccountTotals(journalEntry.journal_entry_id, true);
-        if (!updateResult.success) {
-          console.error('Failed to update account totals:', updateResult.error);
-          // Don't fail the request, just log the error
+        try {
+          const updateResult = await this.updateAccountTotals(journalEntry.journal_entry_id, true);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals:', updateResult.error);
+            // Don't fail the request, just log the error
+          }
+        } catch (updateError) {
+          console.error('Error updating account totals (non-fatal):', updateError);
+          // Continue execution even if update fails
         }
       }
 
       // Transform to frontend format
-      const debitsFormatted = debits.map(d => ({
-        accountId: d.accountId,
-        amount: parseFloat(d.amount)
-      }));
+      const debitsFormatted = (debits && Array.isArray(debits))
+        ? debits.map(d => ({
+            accountId: d.accountId,
+            amount: parseFloat(d.amount || 0)
+          }))
+        : [];
       
-      const creditsFormatted = credits.map(c => ({
-        accountId: c.accountId,
-        amount: parseFloat(c.amount)
-      }));
+      const creditsFormatted = (credits && Array.isArray(credits))
+        ? credits.map(c => ({
+            accountId: c.accountId,
+            amount: parseFloat(c.amount || 0)
+          }))
+        : [];
       
-      const attachmentsFormatted = (attachments || []).map(a => ({
-        name: a.name,
-        type: a.type,
-        url: a.url || null
-      }));
+      // Safely format attachments - handle cases where attachments might be undefined or malformed
+      const attachmentsFormatted = (attachments && Array.isArray(attachments))
+        ? attachments.map(a => ({
+            name: a?.name || '',
+            type: a?.type || '',
+            url: a?.url || null
+          }))
+        : [];
+
+      // Ensure lines is an array
+      const journalLinesFormatted = (lines && Array.isArray(lines)) ? lines : [];
 
       return res.status(201).json({
         message: 'Journal entry created successfully',
@@ -303,13 +323,22 @@ class JournalEntriesEndpoint {
           attachments: attachmentsFormatted,
           rejectionReason: null
         },
-        journalLines: lines,
-        count: lines.length
+        journalLines: journalLinesFormatted,
+        count: journalLinesFormatted.length
       });
 
     } catch (err) {
       console.error('Create journal entry error:', err);
-      return res.status(500).json({ error: 'Server error occurred while creating journal entry.' });
+      console.error('Error stack:', err.stack);
+      console.error('Error details:', {
+        message: err.message,
+        name: err.name,
+        code: err.code
+      });
+      return res.status(500).json({ 
+        error: 'Server error occurred while creating journal entry.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
   }
 

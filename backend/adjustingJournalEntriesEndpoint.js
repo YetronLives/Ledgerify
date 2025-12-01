@@ -361,8 +361,6 @@ class AdjustingJournalEntriesEndpoint {
     const { entryId } = req.params;
     const { status, rejection_reason } = req.body;
 
-    console.log('Updating adjusting journal entry status:', { entryId, status, rejection_reason });
-
     if (!entryId) {
       return res.status(400).json({ error: 'Entry ID is required.' });
     }

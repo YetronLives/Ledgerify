@@ -88,7 +88,6 @@ app.post('/send-email', async (req, res) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    console.log('Email sent successfully:', info.messageId);
     return res.json({
       message: 'Email sent successfully',
       messageId: info.messageId

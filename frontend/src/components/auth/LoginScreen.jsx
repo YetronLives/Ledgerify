@@ -13,7 +13,6 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
   setError('');
 
   const payload = { username, password };
-  console.log('Submitting payload:', payload);
 
   fetch('http://localhost:5000/Login', {
     method: 'POST',
@@ -21,15 +20,12 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
     body: JSON.stringify(payload),
   })
     .then(async (resp) => {
-      console.log('Response:', resp.status, resp.statusText, resp.headers.get('content-type'));
       const raw = await resp.text();
-      console.log('Raw body:', raw);
 
       let data = null;
       if (raw && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
         data = JSON.parse(raw);
       }
-      console.log('Parsed data:', data);
 
       if (!resp.ok) {
         setError((data && data.error) || `Login failed (${resp.status}).`);

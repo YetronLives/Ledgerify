@@ -66,9 +66,7 @@ class UserEndpoint {
 
     if (error) return res.status(400).json({ error: error.message });
 
-    console.log('Attempting to log user creation event...');
     const logResult = await EventLogger.logUserCreation(data[0].id, data[0], data[0].id);
-    console.log('Log result:', logResult);
     if (!logResult.success) {
       console.error('Failed to log user creation event:', logResult.error);
     }
@@ -89,14 +87,12 @@ class UserEndpoint {
       .or(`username.eq.${username.toLowerCase()},email.eq.${username.toLowerCase()}`);
 
     if (fetchErr) {
-      console.log('User fetch error:', fetchErr);
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
     const user = users && users.length > 0 ? users[0] : null;
 
     if (!user) {
-      console.log('User not found for username/email:', username);
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
@@ -115,7 +111,6 @@ class UserEndpoint {
         .from('users')
         .update({ login_attempts: (user.login_attempts || 0) + 1 })
         .eq('id', user.id);
-      console.log('Invalid password attempt for user:', username);
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
@@ -150,7 +145,6 @@ class UserEndpoint {
       }
 
       if (!user) {
-        console.log('User not found for username/email:', username, email);
         return res.status(404).json({ error: 'Invalid username or email.' });
       }
 

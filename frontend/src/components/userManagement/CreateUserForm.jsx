@@ -45,7 +45,6 @@ function CreateUserForm({ close, addUserToApp }) {
                 throw new Error(data.error || 'Failed to create user');
             }
 
-            console.log('User created successfully in database:', data);
 
             // Also update the local state
             const finalNewUser = {

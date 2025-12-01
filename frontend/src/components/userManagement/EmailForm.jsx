@@ -31,7 +31,6 @@ function EmailForm({ user, close }) {
                 throw new Error(data.error || 'Failed to send email');
             }
 
-            console.log('Email sent successfully:', data);
             setSent(true);
 
             setTimeout(() => {

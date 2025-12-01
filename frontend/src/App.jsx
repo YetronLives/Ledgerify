@@ -229,7 +229,6 @@ function App() {
 
     // Calculate ratios (will return empty array if no data, but still runs)
     const ratios = calculateFinancialRatios(allAccounts, allEntries, asOfDate);
-    console.log('Calculated ratios:', ratios, 'for', allAccounts.length, 'accounts');
     setFinancialRatios(ratios);
 
     // Build notifications
@@ -374,7 +373,6 @@ function App() {
       securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
     };
     setUsers((prevUsers) => ({ ...prevUsers, [username]: newUserData }));
-    console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
   };
 
   const removeUserFromApp = (username) => {
@@ -383,13 +381,11 @@ function App() {
       delete newUsers[username];
       return newUsers;
     });
-    console.log(`[App] User Removed. Username: ${username}`);
   };
 
   const addRegistrationRequest = (requestData) => {
     const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     setPendingRequests((prev) => [...prev, { id: requestId, ...requestData }]);
-    console.log('[App] New Registration Request Added:', requestId);
   };
 
   const handleRequest = (requestId, action) => {
@@ -422,9 +418,6 @@ function App() {
 
         const loginLink = window.location.origin;
 
-        console.log(`[App] Approval Email SIMULATED SENT to ${request.email}`);
-        console.log(`[App] New User Credentials: Username: ${username}, Password: ${tempPassword}`);
-
         alert(
           `SUCCESS! User Approved.\n\n` +
           `An email with the following details has been 'sent' to ${request.email}:\n\n` +
@@ -433,8 +426,6 @@ function App() {
           `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
           `The user should use these credentials to log in for the first time.`
         );
-      } else {
-        console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
       }
       return prevRequests.filter((req) => req.id !== requestId);
     });
@@ -580,7 +571,6 @@ function App() {
   };
 
   const updateAdjustingJournalEntryStatus = async (entryId, newStatus, reason = null) => {
-    console.log('Frontend: Updating adjusting journal entry status:', { entryId, newStatus, reason });
     try {
       const response = await fetch(
         `http://localhost:5000/adjusting-journal-entries/${entryId}/status`,

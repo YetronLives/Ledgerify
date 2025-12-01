@@ -8,7 +8,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 class EventLogger {
   static async logEvent({ tableName, recordId, userId, actionType, beforeImage = null, afterImage = null }) {
     try {
-      console.log('EventLogger.logEvent called with:', { tableName, recordId, userId, actionType });
       if (!tableName || !recordId || !userId || !actionType) {
         throw new Error('Missing required parameters: tableName, recordId, userId, actionType');
       }
@@ -28,7 +27,6 @@ class EventLogger {
         event_time: new Date().toISOString()
       };
 
-      console.log('Inserting event log entry:', eventLogEntry);
       const { data, error } = await supabase
         .from('event_log')
         .insert([eventLogEntry])
@@ -39,9 +37,6 @@ class EventLogger {
         throw new Error(`Failed to log event: ${error.message}`);
       }
 
-      console.log('Event logged successfully, data:', data);
-
-      console.log(`Event logged successfully: ${actionType} on ${tableName} record ${recordId} by user ${userId}`);
       return { success: true, data: data[0] };
 
     } catch (error) {
