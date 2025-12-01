@@ -245,16 +245,48 @@ function App() {
     setCustomNotifications(notifs);
   }, [allAccounts, journalEntries, adjustingJournalEntries, user?.passwordExpires]);
 
-    const accountsWithBalances = useMemo(() => {
+  const accountsWithBalances = useMemo(() => {
     if (!allAccounts.length) return [];
     
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
     
-    const balanceMap = computeAccountBalances(allAccounts, allEntries);
+    const stats = {};
+
+    allAccounts.forEach(acc => {
+      const initial = acc.initialBalance || 0;
+      stats[acc.id] = {
+        balance: initial,
+        debit: acc.normalSide === 'Debit' ? initial : 0,
+        credit: acc.normalSide === 'Credit' ? initial : 0,
+        normalSide: acc.normalSide
+      };
+    });
+
+    allEntries.forEach(entry => {
+      if (entry.status !== 'Approved') return;
+
+      entry.debits?.forEach(d => {
+        const accStats = stats[d.accountId];
+        if (accStats && d.amount) {
+          accStats.debit += d.amount;
+          accStats.balance += (accStats.normalSide === 'Debit' ? d.amount : -d.amount);
+        }
+      });
+
+      entry.credits?.forEach(c => {
+        const accStats = stats[c.accountId];
+        if (accStats && c.amount) {
+          accStats.credit += c.amount;
+          accStats.balance += (accStats.normalSide === 'Credit' ? c.amount : -c.amount);
+        }
+      });
+    });
     
     return allAccounts.map(acc => ({
       ...acc,
-      balance: balanceMap[acc.id] !== undefined ? balanceMap[acc.id] : (acc.initialBalance || 0)
+      balance: stats[acc.id] ? stats[acc.id].balance : (acc.initialBalance || 0),
+      debit: stats[acc.id] ? stats[acc.id].debit : 0,
+      credit: stats[acc.id] ? stats[acc.id].credit : 0
     }));
   }, [allAccounts, journalEntries, adjustingJournalEntries]);
 
