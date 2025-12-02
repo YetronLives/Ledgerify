@@ -555,7 +555,8 @@ function App() {
       }
     } catch (err) {
       console.error('Error updating journal entry status:', err);
-      alert(`Failed to ${newStatus.toLowerCase()} journal entry: ${err.message}`);
+      const action = newStatus === 'Approved' ? 'approve' : newStatus === 'Rejected' ? 'reject' : 'update';
+      alert(`Failed to ${action} journal entry: ${err.message}`);
     }
   };
 
