@@ -122,7 +122,8 @@ function AdjustingJournalEntryForm({ accounts, journalEntries, onSubmit, onCance
   const totalCredits = useMemo(() => credits.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [credits]);
 
   const currentBalances = useMemo(() => {
-    return computeAccountBalances(accounts, journalEntries);
+    const result = computeAccountBalances(accounts, journalEntries);
+    return result.balances || {};
   }, [accounts, journalEntries]);
 
   const previewBalances = useMemo(() => {
