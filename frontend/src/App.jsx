@@ -102,7 +102,7 @@ const mapAccountData = (acc) => ({
   initialBalance: acc.initial_balance,
   balance: acc.balance, // This will be overridden by computed balance in accountsWithBalances
   debit: 0,
-  credit: 0, 
+  credit: 0,
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
@@ -253,13 +253,13 @@ function App() {
     setCustomNotifications(notifs);
   }, [allAccounts, journalEntries, adjustingJournalEntries, user?.passwordExpires]);
 
-    const accountsWithBalances = useMemo(() => {
+  const accountsWithBalances = useMemo(() => {
     if (!allAccounts.length) return [];
-    
+
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
-    
+
     const { balances, debits, credits } = computeAccountBalances(allAccounts, allEntries);
-    
+
     return allAccounts.map(acc => ({
       ...acc,
       balance: balances[acc.id] !== undefined ? balances[acc.id] : (acc.initialBalance || 0),
@@ -336,12 +336,10 @@ function App() {
     };
     setUser(mappedUserData);
     setLoginView('login');
-    if (userData.role === 'Admin' || userData.role === 'Administrator') {
-      setPage('users');
-    } else {
+    if (userData.role) {
       setPage('home');
-    }
-  };
+    };
+  }
 
   const updateUserInApp = (username, updatedData) => {
     setUsers((prevUsers) => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
