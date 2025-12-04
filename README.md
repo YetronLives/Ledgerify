@@ -95,7 +95,6 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 ## Test Accounts (Use for Both Setup Options)
 
 > 👨‍💻 For local development and testing only — not for production.  
-> Works in both Docker (real backend) and Frontend-only (mocked login + UI) modes.
 
 - **Admin**: `shams@ledgerify.com` / `ledger1!`
 - **Manager**: `meriam@ledgerify.com` / `ledger1!`
@@ -103,28 +102,11 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 
 ## Local Setup
 
-**Option 1 (Standard): Using Docker**
-1. [Install Docker](https://www.docker.com/products/docker-desktop/)
-
-2. Clone the repository
-   * Copy and paste this command into terminal: ```git clone https://github.com/YetronLives/Ledgerify.git```
-   * Then navigate into the project: ```cd ledgerify```
-
-3. Configure Environment
-   * Rename the example environment file:
-   ```mv .env.example .env```
-   * Add your credentials to the blank variables.
-
-4. Start the Application
-   * Run: ```docker compose up``` , then visit http://localhost:3000/
-   
-**Option 2: Frontend Only (Mocking Data Mode)**
-
 1. [Install Node.js](https://nodejs.org/en)
 
 2. Clone the repository
    * Copy and paste this command into terminal: ```git clone https://github.com/YetronLives/Ledgerify.git```
-   * Then navigate into the project: ```cd ledgerify```
+   * Then navigate into the project: ```cd Ledgerify```
 
 3. Install dependencies
    * Navigate to the "frontend" folder in the repository.
@@ -132,15 +114,18 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
    * Run ```npm install``` in the terminal.
 This will install all necessary packages, including React.
 
-4. Run the application
+4. Run the frontend
    * After the installation is complete, run ```npm start``` in the terminal.
 This will start the application in your browser.
 If it doesn't come up automatically, navigate to http://localhost:3000/
 
+5. Run the backend
+   * Navigate to the "backend" folder in the repository.
+   * Open the terminal within that folder.
+   * Run ```node server.js``` in the terminal.
+This will start up the backend server.
+
 5. Using the application
-   * Now that you have accessed the application, you can test it using the user data mocks provided in the App.jsx file.
    * Here’s what the dashboard looks like:
      
      ![Ledgerify Dashboard](./screenshots/landing-page.png)
-     
-💡 Note: This mode uses a mock login system — you can still log in with the test accounts above. However, data is not persisted to a real database. For full backend functionality (approval workflows, real reports, etc.), use Option 1 (Docker).
