@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useId, useEffect, useMemo, useCallback, useRef } from 'react';
 import LoginScreen from './components/auth/LoginScreen';
 import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
