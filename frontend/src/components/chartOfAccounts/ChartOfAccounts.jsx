@@ -20,9 +20,9 @@ const mapAccount = (acc) => ({
   category: acc.category,
   subcategory: acc.subcategory,
   initialBalance: acc.initial_balance,
-  balance: acc.balance,
-  debit: acc.debit,
-  credit: acc.credit,
+  balance: acc.balance, // Will be computed from journal entries
+  debit: 0,
+  credit: 0,
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
@@ -31,7 +31,7 @@ const mapAccount = (acc) => ({
   isActive: acc.is_active
 });
 
-function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, allAccounts, setAllAccounts }) {
+function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, allAccounts, setAllAccounts, refreshAccounts }) {
   const [accounts, setAccounts] = useState(allAccounts || []);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,8 +52,17 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
   const isAdmin = currentUser?.role === 'Administrator';
 
   useEffect(() => {
-    setAccounts(allAccounts || []);
-    if (allAccounts) {
+    if (allAccounts && allAccounts.length > 0) {
+      // Sort accounts by account number to ensure consistent ordering
+      const sortedAccounts = [...allAccounts].sort((a, b) => {
+        const numA = parseInt(a.number) || 0;
+        const numB = parseInt(b.number) || 0;
+        return numA - numB;
+      });
+      setAccounts(sortedAccounts);
+      setIsLoading(false);
+    } else {
+      setAccounts([]);
       setIsLoading(false);
     }
   }, [allAccounts]); 
@@ -131,17 +140,24 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
 
       if (!response.ok) throw new Error('Failed to create account');
 
-
-      const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
-      const refreshData = await refreshResponse.json();
-      if (refreshResponse.ok && refreshData.accounts) {
-        const mappedAccounts = refreshData.accounts.map(mapAccount);
-        setAccounts(mappedAccounts); 
-        setAllAccounts(mappedAccounts); 
+      // Refresh accounts from backend - this will automatically update allAccounts in App.jsx
+      // which will then update accountsWithBalances and propagate to this component
+      if (refreshAccounts) {
+        await refreshAccounts();
+      } else {
+        // Fallback: manually refresh if refreshAccounts is not provided
+        const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+        const refreshData = await refreshResponse.json();
+        if (refreshResponse.ok && refreshData.accounts) {
+          // Only update the parent state - let useEffect sync local state
+          const mappedAccounts = refreshData.accounts.map(mapAccount);
+          setAllAccounts(mappedAccounts); 
+        }
       }
 
     } catch (error) {
       console.error('Error adding account:', error);
+      setFormError(error.message || 'Failed to create account');
     }
   };
 
@@ -180,13 +196,19 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
             throw new Error(data.error || 'Failed to update account');
         }
 
-        const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
-        const refreshData = await refreshResponse.json();
-       if (refreshResponse.ok && refreshData.accounts) {
-        const mappedAccounts = refreshData.accounts.map(mapAccount);
-        setAccounts(mappedAccounts); 
-        setAllAccounts(mappedAccounts); 
-      }
+        // Refresh accounts from backend
+        if (refreshAccounts) {
+          await refreshAccounts();
+        } else {
+          // Fallback: manually refresh if refreshAccounts is not provided
+          const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+          const refreshData = await refreshResponse.json();
+          if (refreshResponse.ok && refreshData.accounts) {
+            // Only update the parent state - let useEffect sync local state
+            const mappedAccounts = refreshData.accounts.map(mapAccount);
+            setAllAccounts(mappedAccounts); 
+          }
+        }
 
         closeAccountModal();
 
@@ -224,12 +246,18 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
       const data = await response.json();
 
       if (response.ok) {
-        const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
-        const refreshData = await refreshResponse.json();
-        if (refreshResponse.ok && refreshData.accounts) {
+        // Refresh accounts from backend
+        if (refreshAccounts) {
+          await refreshAccounts();
+        } else {
+          // Fallback: manually refresh if refreshAccounts is not provided
+          const refreshResponse = await fetch(`http://localhost:5000/chart-of-accounts`);
+          const refreshData = await refreshResponse.json();
+          if (refreshResponse.ok && refreshData.accounts) {
+            // Only update the parent state - let useEffect sync local state
             const mappedAccounts = refreshData.accounts.map(mapAccount);
-            setAccounts(mappedAccounts);      
             setAllAccounts(mappedAccounts); 
+          }
         }
       } else {
         alert(`Failed to update account: ${data.error}`);
@@ -275,23 +303,31 @@ function ChartOfAccounts({ currentUser, setPage, setSelectedLedgerAccountId, all
   };
 
 
-// Filtering logic
-  const filteredAccounts = accounts.filter(acc => {
-    const searchMatch = acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || acc.number.toString().includes(searchTerm);
-    const categoryMatch = categoryFilter === 'all' || acc.category === categoryFilter;
-    const normalSideMatch = normalSideFilter === 'all' || acc.normalSide === normalSideFilter;
+// Filtering logic - ensure stable order by sorting after filtering
+  const filteredAccounts = accounts
+    .filter(acc => {
+      const searchMatch = acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || acc.number.toString().includes(searchTerm);
+      const categoryMatch = categoryFilter === 'all' || acc.category === categoryFilter;
+      const normalSideMatch = normalSideFilter === 'all' || acc.normalSide === normalSideFilter;
 
-    const balanceMatch = (() => {
-      if (balanceFilter === 'all') return true;
-      if (balanceFilter === '0') return acc.balance === 0;
-      if (balanceFilter === '100000+') return acc.balance >= 100000;
-      const [min, max] = balanceFilter.split('-').map(Number);
-      if (min === 0) return acc.balance > min && acc.balance <= max;
-      return acc.balance >= min && acc.balance < max;
-    })();
+      const balanceMatch = (() => {
+        if (balanceFilter === 'all') return true;
+        const balance = acc.balance || 0;
+        if (balanceFilter === '0') return balance === 0;
+        if (balanceFilter === '100000+') return balance >= 100000;
+        const [min, max] = balanceFilter.split('-').map(Number);
+        if (min === 0) return balance > min && balance <= max;
+        return balance >= min && balance < max;
+      })();
 
-    return searchMatch && categoryMatch && normalSideMatch && balanceMatch;
-  });
+      return searchMatch && categoryMatch && normalSideMatch && balanceMatch;
+    })
+    .sort((a, b) => {
+      // Maintain consistent order by account number
+      const numA = parseInt(a.number) || 0;
+      const numB = parseInt(b.number) || 0;
+      return numA - numB;
+    });
 
   
 const handleDeleteAccount = async () => {
@@ -307,10 +343,14 @@ const handleDeleteAccount = async () => {
         throw new Error(data.error || 'Failed to delete account');
       }
 
-      setAccounts(prev => prev.filter(acc => acc.id !== selectedAccount.id));
-
-      if (setAllAccounts) {
-        setAllAccounts(prev => prev.filter(acc => acc.id !== selectedAccount.id));
+      // Refresh accounts from backend
+      if (refreshAccounts) {
+        await refreshAccounts();
+      } else {
+        // Fallback: manually refresh if refreshAccounts is not provided
+        if (setAllAccounts) {
+          setAllAccounts(prev => prev.filter(acc => acc.id !== selectedAccount.id));
+        }
       }
 
       closeAccountModal();
@@ -523,7 +563,7 @@ const handleDeleteAccount = async () => {
                     <td className="p-3">{acc.normalSide}</td>
                     <td className="p-3">{acc.category}</td>
                     <td className="p-3">{acc.subcategory}</td>
-                    <td className="p-3 text-right font-mono font-bold">${acc.balance.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono font-bold">${(acc.balance || 0).toFixed(2)}</td>
                     <td className="p-3 text-right font-mono font-bold">{acc.isActive ? 'Yes' : 'No'}</td>
                     <td className="p-3 text-right">
                       <div className="flex flex-col space-y-1">

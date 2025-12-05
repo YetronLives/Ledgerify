@@ -33,7 +33,6 @@ function EditUserForm({ user, close, updateUser }) {
             const identifier = user.username || user.email;
             const url = `http://localhost:5000/users/${encodeURIComponent(identifier)}`;
             
-            console.log('Updating user:', { identifier, url, updatedUserData });
             
             const response = await fetch(url, {
                 method: 'PUT',

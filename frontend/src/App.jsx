@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect, useMemo, useRef } from 'react'; 
+import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
 import LoginScreen from './components/auth/LoginScreen';
 import RegistrationRequestScreen from './components/auth/RegistrationRequestScreen';
 import ForgotPasswordScreen from './components/auth/ForgotPasswordScreen';
@@ -100,9 +100,9 @@ const mapAccountData = (acc) => ({
   category: acc.category,
   subcategory: acc.subcategory,
   initialBalance: acc.initial_balance,
-  balance: acc.balance,
-  debit: acc.debit,
-  credit: acc.credit,
+  balance: acc.balance, // This will be overridden by computed balance in accountsWithBalances
+  debit: 0,
+  credit: 0,
   order: acc.order_number,
   statement: acc.statement,
   comment: acc.comment,
@@ -200,27 +200,45 @@ function App() {
       .catch((err) => console.error('Failed to fetch adjusting journal entries:', err));
   }, []);
 
+  // --- Centralized function to refresh accounts from backend ---
+  const refreshAccounts = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:5000/chart-of-accounts');
+      const data = await response.json();
+      if (response.ok && data.accounts) {
+        setAllAccounts(data.accounts.map(mapAccountData));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to refresh accounts:', error);
+      return false;
+    }
+  }, []);
+
   // --- Calculate financial ratios and notifications ---
   useEffect(() => {
+    // Always recalculate ratios when accounts or entries change
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
     const approvedEntries = allEntries.filter((e) => e.status === 'Approved');
 
+    // If no approved entries, still try to calculate ratios based on initial balances
+    // This ensures ratios update when accounts are added, even without journal entries
+    let asOfDate;
     if (approvedEntries.length === 0) {
-      setFinancialRatios([]);
-      setCustomNotifications([]);
-      return;
+      // Use today's date if no approved entries exist
+      asOfDate = new Date().toISOString().split('T')[0];
+    } else {
+      // Use latest approved entry date
+      const latest = approvedEntries.reduce(
+        (max, e) => (new Date(e.date) > max ? new Date(e.date) : max),
+        new Date(0)
+      );
+      asOfDate = latest.toISOString().split('T')[0];
     }
 
-    // Use latest approved entry date
-    const latest = approvedEntries.reduce(
-      (max, e) => (new Date(e.date) > max ? new Date(e.date) : max),
-      new Date(0)
-    );
-    const asOfDate = latest.toISOString().split('T')[0];
-
-    // Calculate ratios
+    // Calculate ratios (will return empty array if no data, but still runs)
     const ratios = calculateFinancialRatios(allAccounts, allEntries, asOfDate);
-    console.log('Calculated ratios:', ratios);
     setFinancialRatios(ratios);
 
     // Build notifications
@@ -247,46 +265,16 @@ function App() {
 
   const accountsWithBalances = useMemo(() => {
     if (!allAccounts.length) return [];
-    
+
     const allEntries = [...journalEntries, ...adjustingJournalEntries];
-    
-    const stats = {};
 
-    allAccounts.forEach(acc => {
-      const initial = acc.initialBalance || 0;
-      stats[acc.id] = {
-        balance: initial,
-        debit: acc.normalSide === 'Debit' ? initial : 0,
-        credit: acc.normalSide === 'Credit' ? initial : 0,
-        normalSide: acc.normalSide
-      };
-    });
+    const { balances, debits, credits } = computeAccountBalances(allAccounts, allEntries);
 
-    allEntries.forEach(entry => {
-      if (entry.status !== 'Approved') return;
-
-      entry.debits?.forEach(d => {
-        const accStats = stats[d.accountId];
-        if (accStats && d.amount) {
-          accStats.debit += d.amount;
-          accStats.balance += (accStats.normalSide === 'Debit' ? d.amount : -d.amount);
-        }
-      });
-
-      entry.credits?.forEach(c => {
-        const accStats = stats[c.accountId];
-        if (accStats && c.amount) {
-          accStats.credit += c.amount;
-          accStats.balance += (accStats.normalSide === 'Credit' ? c.amount : -c.amount);
-        }
-      });
-    });
-    
     return allAccounts.map(acc => ({
       ...acc,
-      balance: stats[acc.id] ? stats[acc.id].balance : (acc.initialBalance || 0),
-      debit: stats[acc.id] ? stats[acc.id].debit : 0,
-      credit: stats[acc.id] ? stats[acc.id].credit : 0
+      balance: balances[acc.id] !== undefined ? balances[acc.id] : (acc.initialBalance || 0),
+      debit: debits[acc.id] !== undefined ? debits[acc.id] : 0,
+      credit: credits[acc.id] !== undefined ? credits[acc.id] : 0
     }));
   }, [allAccounts, journalEntries, adjustingJournalEntries]);
 
@@ -358,12 +346,10 @@ function App() {
     };
     setUser(mappedUserData);
     setLoginView('login');
-    if (userData.role === 'Admin' || userData.role === 'Administrator') {
-      setPage('users');
-    } else {
+    if (userData.role) {
       setPage('home');
-    }
-  };
+    };
+  }
 
   const updateUserInApp = (username, updatedData) => {
     setUsers((prevUsers) => ({ ...prevUsers, [username]: { ...prevUsers[username], ...updatedData } }));
@@ -395,7 +381,6 @@ function App() {
       securityAnswer2: newUser.securityAnswer2 || newUser.securityAnswer2,
     };
     setUsers((prevUsers) => ({ ...prevUsers, [username]: newUserData }));
-    console.log(`[App] User Added/Approved. Username: ${username}`, newUserData);
   };
 
   const removeUserFromApp = (username) => {
@@ -404,13 +389,11 @@ function App() {
       delete newUsers[username];
       return newUsers;
     });
-    console.log(`[App] User Removed. Username: ${username}`);
   };
 
   const addRegistrationRequest = (requestData) => {
     const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     setPendingRequests((prev) => [...prev, { id: requestId, ...requestData }]);
-    console.log('[App] New Registration Request Added:', requestId);
   };
 
   const handleRequest = (requestId, action) => {
@@ -443,9 +426,6 @@ function App() {
 
         const loginLink = window.location.origin;
 
-        console.log(`[App] Approval Email SIMULATED SENT to ${request.email}`);
-        console.log(`[App] New User Credentials: Username: ${username}, Password: ${tempPassword}`);
-
         alert(
           `SUCCESS! User Approved.\n\n` +
           `An email with the following details has been 'sent' to ${request.email}:\n\n` +
@@ -454,8 +434,6 @@ function App() {
           `TEMPORARY PASSWORD: ${tempPassword}\n\n` +
           `The user should use these credentials to log in for the first time.`
         );
-      } else {
-        console.log(`[App] Denial Email SIMULATED SENT to ${request.email}`);
       }
       return prevRequests.filter((req) => req.id !== requestId);
     });
@@ -585,7 +563,8 @@ function App() {
       }
     } catch (err) {
       console.error('Error updating journal entry status:', err);
-      alert(`Failed to ${newStatus.toLowerCase()} journal entry: ${err.message}`);
+      const action = newStatus === 'Approved' ? 'approve' : newStatus === 'Rejected' ? 'reject' : 'update';
+      alert(`Failed to ${action} journal entry: ${err.message}`);
     }
   };
 
@@ -601,7 +580,6 @@ function App() {
   };
 
   const updateAdjustingJournalEntryStatus = async (entryId, newStatus, reason = null) => {
-    console.log('Frontend: Updating adjusting journal entry status:', { entryId, newStatus, reason });
     try {
       const response = await fetch(
         `http://localhost:5000/adjusting-journal-entries/${entryId}/status`,
@@ -643,7 +621,8 @@ function App() {
       }
     } catch (err) {
       console.error('Error updating adjusting journal entry status:', err);
-      alert(`Failed to ${newStatus.toLowerCase()} adjusting journal entry: ${err.message}`);
+      const action = newStatus === 'Approved' ? 'approve' : newStatus === 'Rejected' ? 'reject' : 'update';
+      alert(`Failed to ${action} adjusting journal entry: ${err.message}`);
     }
   };
 
@@ -841,6 +820,7 @@ function App() {
               setSelectedLedgerAccountId={setSelectedLedgerAccountId}
               allAccounts={accountsWithBalances}
               setAllAccounts={setAllAccounts}
+              refreshAccounts={refreshAccounts}
             />
           )}
           {page === 'ledger' && (

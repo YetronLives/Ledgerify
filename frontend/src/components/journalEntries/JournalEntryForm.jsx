@@ -114,29 +114,42 @@ function JournalEntryForm({ accounts, journalEntries, onSubmit, onCancel, curren
   const totalCredits = useMemo(() => credits.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0), [credits]);
 
   const currentBalances = useMemo(() => {
-    return computeAccountBalances(accounts, journalEntries);
+    const result = computeAccountBalances(accounts, journalEntries);
+    return result.balances || {}; // Extract just the balances object
   }, [accounts, journalEntries]);
 
   const previewBalances = useMemo(() => {
     const preview = { ...currentBalances };
+    
+    // Apply debits and credits to preview balances
     debits.forEach(d => {
       if (d.accountId && d.amount) {
         const amt = parseFloat(d.amount);
         if (!isNaN(amt)) {
-          preview[d.accountId] = (preview[d.accountId] || 0) + amt;
+          const acc = accounts.find(a => a.id === d.accountId);
+          if (acc) {
+            // For debit accounts, debits increase balance; for credit accounts, they decrease
+            preview[d.accountId] = (preview[d.accountId] || 0) + (acc.normalSide === 'Debit' ? amt : -amt);
+          }
         }
       }
     });
+    
     credits.forEach(c => {
       if (c.accountId && c.amount) {
         const amt = parseFloat(c.amount);
         if (!isNaN(amt)) {
-          preview[c.accountId] = (preview[c.accountId] || 0) - amt;
+          const acc = accounts.find(a => a.id === c.accountId);
+          if (acc) {
+            // For credit accounts, credits increase balance; for debit accounts, they decrease
+            preview[c.accountId] = (preview[c.accountId] || 0) + (acc.normalSide === 'Credit' ? amt : -amt);
+          }
         }
       }
     });
+    
     return preview;
-  }, [currentBalances, debits, credits]);
+  }, [currentBalances, debits, credits, accounts]);
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);

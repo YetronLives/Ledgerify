@@ -33,6 +33,157 @@ const upload = multer({
 });
 
 class JournalEntriesEndpoint {
+  // Helper function to update account debit/credit totals in chart_of_accounts table
+  static async updateAccountTotals(journalEntryId, shouldAdd = true) {
+    try {
+      if (!journalEntryId) {
+        return { success: false, error: 'Journal entry ID is required' };
+      }
+
+      // Get all journal lines for this entry
+      const { data: journalLines, error: linesError } = await supabase
+        .from('journal_lines')
+        .select('account_id, debit, credit')
+        .eq('journal_entry_id', journalEntryId);
+
+      if (linesError) {
+        console.error('Error fetching journal lines:', linesError);
+        return { success: false, error: `Failed to fetch journal lines: ${linesError.message}` };
+      }
+
+      if (!journalLines || journalLines.length === 0) {
+        console.warn(`No journal lines found for entry ${journalEntryId}`);
+        return { success: true, message: 'No journal lines found' };
+      }
+
+      // Group by account_id and sum debits/credits
+      const accountUpdates = {};
+      journalLines.forEach(line => {
+        if (!line.account_id) {
+          console.warn('Journal line missing account_id:', line);
+          return; // Skip lines without account_id
+        }
+        if (!accountUpdates[line.account_id]) {
+          accountUpdates[line.account_id] = { debit: 0, credit: 0 };
+        }
+        const debitAmount = parseFloat(line.debit || 0);
+        const creditAmount = parseFloat(line.credit || 0);
+        if (isNaN(debitAmount) || isNaN(creditAmount)) {
+          console.warn(`Invalid debit/credit values for account ${line.account_id}:`, line);
+          return; // Skip invalid values
+        }
+        accountUpdates[line.account_id].debit += debitAmount;
+        accountUpdates[line.account_id].credit += creditAmount;
+      });
+
+      if (Object.keys(accountUpdates).length === 0) {
+        return { success: true, message: 'No valid account updates to process' };
+      }
+
+      // Update each account's debit/credit totals and balance
+      const updateErrors = [];
+      for (const [accountId, totals] of Object.entries(accountUpdates)) {
+        try {
+          // Get current account values including current balance and normal_side
+          const { data: account, error: accountError } = await supabase
+            .from('chart_of_accounts')
+            .select('debit, credit, balance, normal_side')
+            .eq('account_id', accountId)
+            .single();
+
+          if (accountError) {
+            console.error(`Error fetching account ${accountId}:`, accountError);
+            updateErrors.push(`Account ${accountId}: ${accountError.message}`);
+            continue; // Skip this account but continue with others
+          }
+
+          if (!account) {
+            console.error(`Account ${accountId} not found`);
+            updateErrors.push(`Account ${accountId}: not found`);
+            continue;
+          }
+
+          // Calculate new debit/credit totals
+          const currentDebit = parseFloat(account.debit || 0);
+          const currentCredit = parseFloat(account.credit || 0);
+          const currentBalance = parseFloat(account.balance || 0);
+          
+          if (isNaN(currentDebit) || isNaN(currentCredit) || isNaN(currentBalance)) {
+            console.error(`Invalid account values for ${accountId}:`, account);
+            updateErrors.push(`Account ${accountId}: invalid current values`);
+            continue;
+          }
+
+          const newDebit = shouldAdd 
+            ? currentDebit + totals.debit 
+            : Math.max(0, currentDebit - totals.debit);
+          const newCredit = shouldAdd 
+            ? currentCredit + totals.credit 
+            : Math.max(0, currentCredit - totals.credit);
+
+          // Calculate balance change based on normal side
+          // For each debit/credit in this transaction, apply its effect to balance
+          const normalSide = account.normal_side?.toLowerCase();
+          let balanceChange = 0;
+
+          if (shouldAdd) {
+            // Adding transaction: apply debits and credits
+            if (normalSide === 'debit') {
+              // For Debit accounts: debits add to balance, credits subtract from balance
+              balanceChange = totals.debit - totals.credit;
+            } else if (normalSide === 'credit') {
+              // For Credit accounts: credits add to balance, debits subtract from balance
+              balanceChange = totals.credit - totals.debit;
+            }
+          } else {
+            // Removing transaction (rejection): reverse the effect
+            if (normalSide === 'debit') {
+              // Reverse: subtract what was added, add what was subtracted
+              balanceChange = -(totals.debit - totals.credit);
+            } else if (normalSide === 'credit') {
+              // Reverse: subtract what was added, add what was subtracted
+              balanceChange = -(totals.credit - totals.debit);
+            }
+          }
+
+          // Calculate new balance by applying the change to current balance
+          const newBalance = currentBalance + balanceChange;
+
+          // Update the account with debit, credit, and balance
+          const { error: updateError } = await supabase
+            .from('chart_of_accounts')
+            .update({ 
+              debit: newDebit,
+              credit: newCredit,
+              balance: newBalance
+            })
+            .eq('account_id', accountId);
+
+          if (updateError) {
+            console.error(`Error updating account ${accountId}:`, updateError);
+            updateErrors.push(`Account ${accountId}: ${updateError.message}`);
+          }
+        } catch (accountUpdateError) {
+          console.error(`Exception updating account ${accountId}:`, accountUpdateError);
+          updateErrors.push(`Account ${accountId}: ${accountUpdateError.message}`);
+        }
+      }
+
+      if (updateErrors.length > 0) {
+        return { 
+          success: false, 
+          error: `Some account updates failed: ${updateErrors.join('; ')}` 
+        };
+      }
+
+      return { success: true, message: 'Account totals updated successfully' };
+    } catch (err) {
+      console.error('Error updating account totals:', err);
+      console.error('Error stack:', err.stack);
+      return { success: false, error: err.message || 'Unknown error occurred' };
+    }
+  }
+
   // Create journal entry with journal lines
   static async createJournalEntry(req, res) {
     const { user_id, description, debits, credits, attachments } = req.body;
@@ -152,32 +303,62 @@ class JournalEntriesEndpoint {
         return res.status(500).json({ error: 'Failed to create journal lines: ' + linesError.message });
       }
 
-      // Log the journal entry creation
-      const logResult = await EventLogger.logJournalEntryCreation(
-        journalEntry.journal_entry_id,
-        journalEntry,
-        user_id
-      );
-      if (!logResult.success) {
-        console.error('Failed to log journal entry creation:', logResult.error);
+      // Log the journal entry creation (non-blocking - don't fail if logging fails)
+      try {
+        const logResult = await EventLogger.logJournalEntryCreation(
+          journalEntry.journal_entry_id,
+          journalEntry,
+          user_id
+        );
+        if (!logResult.success) {
+          console.error('Failed to log journal entry creation:', logResult.error);
+        }
+      } catch (logError) {
+        console.error('Error in event logging (non-fatal):', logError);
+        // Continue execution even if logging fails
+      }
+
+      // Update account debit/credit totals if entry is auto-approved (non-blocking)
+      if (status === 'Approved') {
+        try {
+          // Call the static helper using the class name so Express binding doesn't break `this`
+          const updateResult = await JournalEntriesEndpoint.updateAccountTotals(journalEntry.journal_entry_id, true);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals:', updateResult.error);
+            // Don't fail the request, just log the error
+          }
+        } catch (updateError) {
+          console.error('Error updating account totals (non-fatal):', updateError);
+          // Continue execution even if update fails
+        }
       }
 
       // Transform to frontend format
-      const debitsFormatted = debits.map(d => ({
-        accountId: d.accountId,
-        amount: parseFloat(d.amount)
-      }));
+      const debitsFormatted = (debits && Array.isArray(debits))
+        ? debits.map(d => ({
+            accountId: d.accountId,
+            amount: parseFloat(d.amount || 0)
+          }))
+        : [];
       
-      const creditsFormatted = credits.map(c => ({
-        accountId: c.accountId,
-        amount: parseFloat(c.amount)
-      }));
+      const creditsFormatted = (credits && Array.isArray(credits))
+        ? credits.map(c => ({
+            accountId: c.accountId,
+            amount: parseFloat(c.amount || 0)
+          }))
+        : [];
       
-      const attachmentsFormatted = (attachments || []).map(a => ({
-        name: a.name,
-        type: a.type,
-        url: a.url || null
-      }));
+      // Safely format attachments - handle cases where attachments might be undefined or malformed
+      const attachmentsFormatted = (attachments && Array.isArray(attachments))
+        ? attachments.map(a => ({
+            name: a?.name || '',
+            type: a?.type || '',
+            url: a?.url || null
+          }))
+        : [];
+
+      // Ensure lines is an array
+      const journalLinesFormatted = (lines && Array.isArray(lines)) ? lines : [];
 
       return res.status(201).json({
         message: 'Journal entry created successfully',
@@ -191,13 +372,22 @@ class JournalEntriesEndpoint {
           attachments: attachmentsFormatted,
           rejectionReason: null
         },
-        journalLines: lines,
-        count: lines.length
+        journalLines: journalLinesFormatted,
+        count: journalLinesFormatted.length
       });
 
     } catch (err) {
       console.error('Create journal entry error:', err);
-      return res.status(500).json({ error: 'Server error occurred while creating journal entry.' });
+      console.error('Error stack:', err.stack);
+      console.error('Error details:', {
+        message: err.message,
+        name: err.name,
+        code: err.code
+      });
+      return res.status(500).json({ 
+        error: 'Server error occurred while creating journal entry.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
   }
 
@@ -250,14 +440,53 @@ class JournalEntriesEndpoint {
       }
 
       // Log the update
-      const logResult = await EventLogger.logJournalEntryUpdate(
-        entryId,
-        beforeData,
-        updatedEntry,
-        updated_by_user_id || beforeData.user_id
-      );
-      if (!logResult.success) {
-        console.error('Failed to log journal entry status update:', logResult.error);
+      try {
+        const userIdForLog = updated_by_user_id || beforeData?.user_id || null;
+        if (userIdForLog) {
+          const logResult = await EventLogger.logJournalEntryUpdate(
+            entryId,
+            beforeData,
+            updatedEntry,
+            userIdForLog
+          );
+          if (!logResult.success) {
+            console.error('Failed to log journal entry status update:', logResult.error);
+          }
+        } else {
+          console.warn('Cannot log journal entry update: no user ID available');
+        }
+      } catch (logError) {
+        console.error('Exception while logging journal entry update:', logError);
+        // Don't fail the request if logging fails
+      }
+
+      // Update account debit/credit totals based on status change
+      if (beforeData.status !== 'Approved' && status === 'Approved') {
+        // Entry is being approved - add to account totals
+        try {
+          // Use class name instead of `this` because Express calls this as a plain function
+          const updateResult = await JournalEntriesEndpoint.updateAccountTotals(entryId, true);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals on approval:', updateResult.error);
+            // Don't fail the entire request, but log the error
+          }
+        } catch (updateError) {
+          console.error('Exception while updating account totals on approval:', updateError);
+          // Don't fail the entire request, but log the error
+        }
+      } else if (beforeData.status === 'Approved' && status !== 'Approved') {
+        // Entry was approved but is now being rejected/pending - subtract from account totals
+        try {
+          // Use class name instead of `this` because Express calls this as a plain function
+          const updateResult = await JournalEntriesEndpoint.updateAccountTotals(entryId, false);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals on rejection:', updateResult.error);
+            // Don't fail the entire request, but log the error
+          }
+        } catch (updateError) {
+          console.error('Exception while updating account totals on rejection:', updateError);
+          // Don't fail the entire request, but log the error
+        }
       }
 
       return res.json({
@@ -270,7 +499,18 @@ class JournalEntriesEndpoint {
 
     } catch (err) {
       console.error('Update journal entry status error:', err);
-      return res.status(500).json({ error: 'Server error occurred while updating journal entry status.' });
+      console.error('Error stack:', err.stack);
+      console.error('Error details:', {
+        message: err.message,
+        name: err.name,
+        code: err.code,
+        entryId: req.params.entryId,
+        status: req.body.status
+      });
+      return res.status(500).json({ 
+        error: 'Server error occurred while updating journal entry status.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
   }
 

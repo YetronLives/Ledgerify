@@ -8,6 +8,157 @@ const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 class AdjustingJournalEntriesEndpoint {
+  // Helper function to update account debit/credit totals in chart_of_accounts table
+  static async updateAccountTotals(adjustingJournalEntryId, shouldAdd = true) {
+    try {
+      if (!adjustingJournalEntryId) {
+        return { success: false, error: 'Adjusting journal entry ID is required' };
+      }
+
+      // Get all adjusting journal lines for this entry
+      const { data: journalLines, error: linesError } = await supabase
+        .from('adjusting_journal_lines')
+        .select('account_id, debit, credit')
+        .eq('adjusting_journal_entry_id', adjustingJournalEntryId);
+
+      if (linesError) {
+        console.error('Error fetching adjusting journal lines:', linesError);
+        return { success: false, error: `Failed to fetch adjusting journal lines: ${linesError.message}` };
+      }
+
+      if (!journalLines || journalLines.length === 0) {
+        console.warn(`No adjusting journal lines found for entry ${adjustingJournalEntryId}`);
+        return { success: true, message: 'No adjusting journal lines found' };
+      }
+
+      // Group by account_id and sum debits/credits
+      const accountUpdates = {};
+      journalLines.forEach(line => {
+        if (!line.account_id) {
+          console.warn('Adjusting journal line missing account_id:', line);
+          return; // Skip lines without account_id
+        }
+        if (!accountUpdates[line.account_id]) {
+          accountUpdates[line.account_id] = { debit: 0, credit: 0 };
+        }
+        const debitAmount = parseFloat(line.debit || 0);
+        const creditAmount = parseFloat(line.credit || 0);
+        if (isNaN(debitAmount) || isNaN(creditAmount)) {
+          console.warn(`Invalid debit/credit values for account ${line.account_id}:`, line);
+          return; // Skip invalid values
+        }
+        accountUpdates[line.account_id].debit += debitAmount;
+        accountUpdates[line.account_id].credit += creditAmount;
+      });
+
+      if (Object.keys(accountUpdates).length === 0) {
+        return { success: true, message: 'No valid account updates to process' };
+      }
+
+      // Update each account's debit/credit totals and balance
+      const updateErrors = [];
+      for (const [accountId, totals] of Object.entries(accountUpdates)) {
+        try {
+          // Get current account values including current balance and normal_side
+          const { data: account, error: accountError } = await supabase
+            .from('chart_of_accounts')
+            .select('debit, credit, balance, normal_side')
+            .eq('account_id', accountId)
+            .single();
+
+          if (accountError) {
+            console.error(`Error fetching account ${accountId}:`, accountError);
+            updateErrors.push(`Account ${accountId}: ${accountError.message}`);
+            continue; // Skip this account but continue with others
+          }
+
+          if (!account) {
+            console.error(`Account ${accountId} not found`);
+            updateErrors.push(`Account ${accountId}: not found`);
+            continue;
+          }
+
+          // Calculate new debit/credit totals
+          const currentDebit = parseFloat(account.debit || 0);
+          const currentCredit = parseFloat(account.credit || 0);
+          const currentBalance = parseFloat(account.balance || 0);
+          
+          if (isNaN(currentDebit) || isNaN(currentCredit) || isNaN(currentBalance)) {
+            console.error(`Invalid account values for ${accountId}:`, account);
+            updateErrors.push(`Account ${accountId}: invalid current values`);
+            continue;
+          }
+
+          const newDebit = shouldAdd 
+            ? currentDebit + totals.debit 
+            : Math.max(0, currentDebit - totals.debit);
+          const newCredit = shouldAdd 
+            ? currentCredit + totals.credit 
+            : Math.max(0, currentCredit - totals.credit);
+
+          // Calculate balance change based on normal side
+          // For each debit/credit in this transaction, apply its effect to balance
+          const normalSide = account.normal_side?.toLowerCase();
+          let balanceChange = 0;
+
+          if (shouldAdd) {
+            // Adding transaction: apply debits and credits
+            if (normalSide === 'debit') {
+              // For Debit accounts: debits add to balance, credits subtract from balance
+              balanceChange = totals.debit - totals.credit;
+            } else if (normalSide === 'credit') {
+              // For Credit accounts: credits add to balance, debits subtract from balance
+              balanceChange = totals.credit - totals.debit;
+            }
+          } else {
+            // Removing transaction (rejection): reverse the effect
+            if (normalSide === 'debit') {
+              // Reverse: subtract what was added, add what was subtracted
+              balanceChange = -(totals.debit - totals.credit);
+            } else if (normalSide === 'credit') {
+              // Reverse: subtract what was added, add what was subtracted
+              balanceChange = -(totals.credit - totals.debit);
+            }
+          }
+
+          // Calculate new balance by applying the change to current balance
+          const newBalance = currentBalance + balanceChange;
+
+          // Update the account with debit, credit, and balance
+          const { error: updateError } = await supabase
+            .from('chart_of_accounts')
+            .update({ 
+              debit: newDebit,
+              credit: newCredit,
+              balance: newBalance
+            })
+            .eq('account_id', accountId);
+
+          if (updateError) {
+            console.error(`Error updating account ${accountId}:`, updateError);
+            updateErrors.push(`Account ${accountId}: ${updateError.message}`);
+          }
+        } catch (accountUpdateError) {
+          console.error(`Exception updating account ${accountId}:`, accountUpdateError);
+          updateErrors.push(`Account ${accountId}: ${accountUpdateError.message}`);
+        }
+      }
+
+      if (updateErrors.length > 0) {
+        return { 
+          success: false, 
+          error: `Some account updates failed: ${updateErrors.join('; ')}` 
+        };
+      }
+
+      return { success: true, message: 'Account totals updated successfully' };
+    } catch (err) {
+      console.error('Error updating account totals:', err);
+      console.error('Error stack:', err.stack);
+      return { success: false, error: err.message || 'Unknown error occurred' };
+    }
+  }
+
   // Create adjusting journal entries with journal lines
   static async createAdjustingJournalEntry(req, res) {
     const { user_id, adjustment_type, description, debits, credits, attachments} = req.body;
@@ -141,6 +292,21 @@ class AdjustingJournalEntriesEndpoint {
             console.error('Failed to log adjusting journal entry creation:', logResult.error);
         }
 
+        // Update account debit/credit totals if entry is auto-approved
+        if (status === 'Approved') {
+          try {
+            // Use class name instead of `this` because Express calls this as a plain function
+            const updateResult = await AdjustingJournalEntriesEndpoint.updateAccountTotals(journalEntry.adjusting_journal_entry_id, true);
+            if (!updateResult.success) {
+              console.error('Failed to update account totals:', updateResult.error);
+              // Don't fail the request, just log the error
+            }
+          } catch (updateError) {
+            console.error('Exception while updating account totals (non-fatal):', updateError);
+            // Continue execution even if update fails
+          }
+        }
+
         return res.status(201).json({
             message: 'Adjusting journal entry created successfully',
             adjustingJournalEntry: {
@@ -249,8 +415,6 @@ class AdjustingJournalEntriesEndpoint {
     const { entryId } = req.params;
     const { status, rejection_reason } = req.body;
 
-    console.log('Updating adjusting journal entry status:', { entryId, status, rejection_reason });
-
     if (!entryId) {
       return res.status(400).json({ error: 'Entry ID is required.' });
     }
@@ -265,6 +429,17 @@ class AdjustingJournalEntriesEndpoint {
     // }
 
     try {
+      // Get the entry before update to check previous status
+      const { data: beforeData, error: fetchError } = await supabase
+        .from('adjusting_journal_entries')
+        .select('status')
+        .eq('adjusting_journal_entry_id', entryId)
+        .single();
+
+      if (fetchError) {
+        return res.status(404).json({ error: 'Adjusting journal entry not found.' });
+      }
+
       // Only update status for now (rejection_reason column may not exist yet)
       const updateData = {
         status
@@ -298,16 +473,54 @@ class AdjustingJournalEntriesEndpoint {
         }
       }
 
-      // Log the status update
-      const logResult = await EventLogger.logAdjustingJournalEntryUpdate(
-        entryId,
-        { status: 'Pending Review' },
-        data,
-        req.body.user_id || null
-      );
+      // Update account debit/credit totals based on status change
+      if (beforeData.status !== 'Approved' && status === 'Approved') {
+        // Entry is being approved - add to account totals
+        try {
+          // Use class name instead of `this` because Express calls this as a plain function
+          const updateResult = await AdjustingJournalEntriesEndpoint.updateAccountTotals(entryId, true);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals on approval:', updateResult.error);
+            // Don't fail the entire request, but log the error
+          }
+        } catch (updateError) {
+          console.error('Exception while updating account totals on approval:', updateError);
+          // Don't fail the entire request, but log the error
+        }
+      } else if (beforeData.status === 'Approved' && status !== 'Approved') {
+        // Entry was approved but is now being rejected - subtract from account totals
+        try {
+          // Use class name instead of `this` because Express calls this as a plain function
+          const updateResult = await AdjustingJournalEntriesEndpoint.updateAccountTotals(entryId, false);
+          if (!updateResult.success) {
+            console.error('Failed to update account totals on rejection:', updateResult.error);
+            // Don't fail the entire request, but log the error
+          }
+        } catch (updateError) {
+          console.error('Exception while updating account totals on rejection:', updateError);
+          // Don't fail the entire request, but log the error
+        }
+      }
 
-      if (!logResult.success) {
-        console.error('Failed to log status update:', logResult.error);
+      // Log the status update
+      try {
+        const userIdForLog = req.body.user_id || beforeData?.user_id || null;
+        if (userIdForLog) {
+          const logResult = await EventLogger.logAdjustingJournalEntryUpdate(
+            entryId,
+            beforeData,
+            data,
+            userIdForLog
+          );
+          if (!logResult.success) {
+            console.error('Failed to log status update:', logResult.error);
+          }
+        } else {
+          console.warn('Cannot log adjusting journal entry update: no user ID available');
+        }
+      } catch (logError) {
+        console.error('Exception while logging adjusting journal entry update:', logError);
+        // Don't fail the request if logging fails
       }
 
       return res.json({
@@ -317,7 +530,18 @@ class AdjustingJournalEntriesEndpoint {
 
     } catch (err) {
       console.error('Error updating adjusting journal entry status:', err);
-      return res.status(500).json({ error: 'Server error occurred while updating adjusting journal entry status.' });
+      console.error('Error stack:', err.stack);
+      console.error('Error details:', {
+        message: err.message,
+        name: err.name,
+        code: err.code,
+        entryId: req.params.entryId,
+        status: req.body.status
+      });
+      return res.status(500).json({ 
+        error: 'Server error occurred while updating adjusting journal entry status.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
   }
 }
