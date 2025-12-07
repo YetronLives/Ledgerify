@@ -1,4 +1,7 @@
+
 # Ledgerify
+***Note: updated source code is in the sprint-6 branch***
+
 Ledgerify is a secure, web-based accounting application that enables users to manage core financial processes while ensuring compliance, integrity, and usability. The system is designed for small businesses, managers, and accountants who need efficient tools to track financial transactions and generate reports.
 
 ## Team Name: The Five Ledgers
@@ -95,10 +98,7 @@ Ledgerify is a secure, web-based accounting application that enables users to ma
 ## Test Accounts (Use for Both Setup Options)
 
 > 👨‍💻 For local development and testing only — not for production.  
-
-- **Admin**: `shams@ledgerify.com` / `ledger1!`
-- **Manager**: `meriam@ledgerify.com` / `ledger1!`
-- **Accountant**: `constant@example.com` / `ledger1!`
+  - Test accounts in progress
 
 ## Local Setup
 
