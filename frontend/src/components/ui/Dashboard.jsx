@@ -42,11 +42,7 @@ function RequestInbox({ requests, handleRequest }) {
     };
 
     if (requests.length === 0) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow-md border-2 border-dashed border-gray-300 text-center mb-6">
-                <p className="text-gray-500 font-semibold">No pending registration requests.</p>
-            </div>
-        );
+        return null;
     }
 
     return (
