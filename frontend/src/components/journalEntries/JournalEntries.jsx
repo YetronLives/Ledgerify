@@ -224,7 +224,7 @@ function JournalEntriesPage({
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div className="relative">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Search by Account, Description {entryType === 'adjusting' && ', or Type'}
+                                            Search by Account/Description{entryType === 'adjusting' &&'/Type'}
                                         </label>
                                         <input
                                             type="text"
