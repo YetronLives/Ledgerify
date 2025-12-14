@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { IconPlusCircle, IconMail } from './Icons';
+import { IconPlusCircle, IconMail } from '../ui/Icons';
 import CreateUserForm from './CreateUserForm';
 import EditUserForm from './EditUserForm';
 import SuspendUserForm from './SuspendUserForm';
+import DeactivateUserForm from '../DeactivateUserForm';
 import EmailForm from './EmailForm';
-import Modal from './Modal';
+import Modal from '../ui/Modal';
 
 const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
     // The local state should primarily derive from the prop to stay synchronized
@@ -45,6 +46,7 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
         if (!modalContent) return '';
         switch (modalContent.type) {
             case 'suspend': return 'Suspend User';
+            case 'deactivate': return `${modalContent.userData.status === 'Active' ? 'Deactivate' : 'Activate'} User`;
             case 'email': return `Email ${modalContent.userData.fullName}`;
             case 'create': return 'Create New User';
             case 'edit': return `Edit User: ${modalContent.userData.fullName}`;
@@ -56,6 +58,7 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
         if (!modalContent) return null;
         switch (modalContent.type) {
             case 'suspend': return <SuspendUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
+            case 'deactivate': return <DeactivateUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
             case 'email': return <EmailForm user={modalContent.userData} close={closeModal} />;
             case 'create': return <CreateUserForm close={closeModal} addUserToApp={addUser} />;
             case 'edit': return <EditUserForm user={modalContent.userData} close={closeModal} updateUser={updateUser} />;
@@ -72,9 +75,9 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
                 <h2 className="text-2xl font-bold mb-4 md:mb-0">User Management</h2>
                 <div className="flex items-center space-x-2">
                     <span className="font-semibold text-gray-600">Filter:</span>
-                    <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>All</button>
-                    <button onClick={() => setFilter('expired')} className={`px-4 py-2 rounded-lg ${filter === 'expired' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Expired Passwords</button>
-                    <button onClick={() => openModal('create')} className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"><IconPlusCircle /><span>Create User</span></button>
+                    <button onClick={() => setFilter('all')} title="Show all users" className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>All</button>
+                    <button onClick={() => setFilter('expired')} title="Show users with expired passwords" className={`px-4 py-2 rounded-lg ${filter === 'expired' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Expired Passwords</button>
+                    <button onClick={() => openModal('create')} title="Create a new user account" className="bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 flex items-center space-x-2"><IconPlusCircle /><span>Create User</span></button>
                 </div>
             </div>
             <div className="overflow-x-auto">
@@ -96,11 +99,34 @@ const UserManagement = ({ mockUsers, updateUserInApp, addUserToApp }) => {
                                 <td className="p-3 font-medium">{user.fullName}</td>
                                 <td className="p-3">{user.role}</td>
                                 <td className="p-3"><span className={`px-3 py-1 text-sm rounded-full ${user.status === 'Active' ? 'bg-green-100 text-green-800' : user.status === 'Inactive' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'}`}>{user.status}</span></td>
-                                <td className="p-3">{user.passwordExpires}</td>
+                                <td className="p-3">
+                                    {user.passwordExpires ? (
+                                        <div>
+                                            <div className={`text-sm ${new Date(user.passwordExpires) < new Date() ? 'text-red-600 font-semibold' : new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>
+                                                {new Date(user.passwordExpires).toLocaleDateString()}
+                                            </div>
+                                            {new Date(user.passwordExpires) < new Date() && (
+                                                <span className="text-xs text-red-500 font-bold">EXPIRED</span>
+                                            )}
+                                            {new Date(user.passwordExpires) >= new Date() && new Date(user.passwordExpires) < new Date(Date.now() + 24*60*60*1000) && (
+                                                <span className="text-xs text-orange-500 font-bold">EXPIRES SOON</span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 text-sm">Not set</span>
+                                    )}
+                                </td>
                                 <td className="p-3 flex space-x-2 items-center">
-                                    <button onClick={() => openModal('edit', { ...user, username })} className="text-blue-600 hover:underline text-sm">Edit</button>
-                                    <button onClick={() => openModal('suspend', { ...user, username })} className="text-red-600 hover:underline text-sm">Suspend</button>
-                                    <button onClick={() => openModal('email', { ...user, username })} className="text-gray-600 hover:text-black"><IconMail className="w-5 h-5"/></button>
+                                    <button onClick={() => openModal('edit', { ...user, username })} title={`Edit details for ${user.fullName}`} className="text-blue-600 hover:underline text-sm">Edit</button>
+                                    <button 
+                                        onClick={() => openModal('deactivate', { ...user, username })} 
+                                        title={`${user.status === 'Active' ? 'Deactivate' : 'Activate'} ${user.fullName}'s account`}
+                                        className={`hover:underline text-sm ${user.status === 'Active' ? 'text-orange-600' : 'text-green-600'}`}
+                                    >
+                                        {user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button onClick={() => openModal('suspend', { ...user, username })} title={`Temporarily suspend ${user.fullName}'s account`} className="text-red-600 hover:underline text-sm">Suspend</button>
+                                    <button onClick={() => openModal('email', { ...user, username })} title={`Send an email to ${user.fullName}`} className="text-gray-600 hover:text-black"><IconMail className="w-5 h-5"/></button>
                                 </td>
                             </tr>
                         ))}

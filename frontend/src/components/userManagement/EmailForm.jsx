@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconLoading } from './Icons';
+import { IconLoading } from '../ui/Icons';
 
 function EmailForm({ user, close }) {
     const [isLoading, setIsLoading] = useState(false);
@@ -11,18 +11,37 @@ function EmailForm({ user, close }) {
         e.preventDefault();
         setIsLoading(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        console.log(`Sending email to ${user.fullName} (${user.email}) with subject: ${subject}`);
-        console.log(`Body: ${body}`);
+        try {
+            const response = await fetch('http://localhost:5000/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to: user.email,
+                    subject: subject,
+                    body: body,
+                    senderName: 'Ledgerify Support'
+                })
+            });
 
-        setIsLoading(false);
-        setSent(true);
-        
-        setTimeout(() => {
-            close();
-        }, 3000);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to send email');
+            }
+
+            setSent(true);
+
+            setTimeout(() => {
+                close();
+            }, 3000);
+        } catch (error) {
+            console.error('Error sending email:', error);
+            alert('Failed to send email: ' + error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -31,7 +50,6 @@ function EmailForm({ user, close }) {
                 <div className="text-center text-green-600 font-semibold my-4">Email sent successfully!</div>
             ) : (
                 <>
-                    <p className="mb-4">Email user: <strong>{user.fullName}</strong></p>
                     <div className="mb-4">
                         <label className="block text-gray-600 mb-2">Subject</label>
                         <input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required />
@@ -41,8 +59,8 @@ function EmailForm({ user, close }) {
                         <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full px-4 py-2 border rounded-lg" rows={4} required></textarea>
                     </div>
                     <div className="flex justify-end space-x-2 mt-4">
-                        <button type="button" onClick={close} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
-                        <button type="submit" disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                        <button type="button" onClick={close} title="Cancel and close this dialog" className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
+                        <button type="submit" disabled={isLoading} title={`Send this email to ${user.fullName}`} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                             {isLoading && <IconLoading className="w-5 h-5" />}
                             <span>Send Email</span>
                         </button>

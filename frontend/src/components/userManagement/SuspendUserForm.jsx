@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconLoading } from './Icons';
+import { IconLoading } from '../ui/Icons';
 
 function SuspendUserForm({ user, close, updateUser }) {
     const [isLoading, setIsLoading] = useState(false);
@@ -43,8 +43,8 @@ function SuspendUserForm({ user, close, updateUser }) {
                         required
                     />
                     <div className="flex justify-end space-x-2 mt-4">
-                        <button type="button" onClick={close} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
-                        <button type="submit" disabled={isLoading} className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                        <button type="button" onClick={close} title="Cancel and close this dialog" className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
+                        <button type="submit" disabled={isLoading} title="Confirm suspension of this user" className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                             {isLoading && <IconLoading className="w-5 h-5" />}
                             <span>Suspend</span>
                         </button>

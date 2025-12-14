@@ -1,50 +1,57 @@
 import React, { useState } from 'react';
-import { IconLogo, IconLoading } from './Icons';
+import { IconLogo, IconLoading } from '../ui/Icons';
 
 function LoginScreen({ onLogin, setLoginView, mockUsers }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [attempts, setAttempts] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        if (attempts >= 2) {
-            setError('Maximum login attempts exceeded. Your account is temporarily locked.');
-            return;
-        }
-        setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+  const handleSubmit = (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError('');
 
-        let loginUsername = username.toLowerCase();
+  const payload = { username, password };
 
-        // Check if the input is an email
-        if (username.includes('@')) {
-            const foundUserEntry = Object.entries(mockUsers).find(([, user]) => user.email.toLowerCase() === username.toLowerCase());
-            if (foundUserEntry) {
-                loginUsername = foundUserEntry[0];
-            }
-        }
+  fetch('http://localhost:5000/Login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(async (resp) => {
+      const raw = await resp.text();
 
-        const loginResult = onLogin(loginUsername, password);
-        setIsLoading(false);
+      let data = null;
+      if (raw && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
+        data = JSON.parse(raw);
+      }
 
-        if (loginResult) {
-            switch (loginResult) {
-                case 'Inactive':
-                    setError('This account is inactive. Please contact an administrator.');
-                    break;
-                case 'Suspended':
-                    setError('This account is suspended. Please contact an administrator.');
-                    break;
-                default:
-                    setError('Invalid username or password.');
-                    setAttempts(attempts + 1);
-            }
-        }
-    };
+      if (!resp.ok) {
+        setError((data && data.error) || `Login failed (${resp.status}).`);
+        return;
+      }
+      if (!data || !data.user) {
+        setError('Login failed. Invalid server response.');
+        return;
+      }
+
+      if (typeof onLogin === 'function') {
+        // Pass the complete user data object
+        onLogin(data.user);
+      } else {
+        console.warn('onLogin prop is not a function. Showing success message instead.');
+        setError('Logged in successfully (no onLogin handler wired).');
+      }
+    })
+    .catch((err) => {
+      console.error('Fetch failed:', err);
+      setError('Network error. Check CORS/URL and backend logs.');
+    })
+    .finally(() => setIsLoading(false));
+};
+
+        
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
@@ -69,13 +76,13 @@ function LoginScreen({ onLogin, setLoginView, mockUsers }) {
                         <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="********"/>
                     </div>
                     {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-                    <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                    <button type="submit" disabled={isLoading} title="Log in to your account" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                         {isLoading && <IconLoading className="w-5 h-5" />}
                         <span>Login</span>
                     </button>
                     <div className="flex justify-between items-center mt-4 text-sm">
-                        <button type="button" onClick={() => setLoginView('forgot')} className="text-blue-600 hover:underline">Forgot Password?</button>
-                        <button type="button" onClick={() => setLoginView('register')} className="text-teal-600 hover:underline">Create New User</button>
+                        <button type="button" onClick={() => setLoginView('forgot')} title="Reset your password" className="text-blue-600 hover:underline">Forgot Password?</button>
+                        <button type="button" onClick={() => setLoginView('register')} title="Request a new user account" className="text-teal-600 hover:underline">Create New User</button>
                     </div>
                 </form>
             </div>
