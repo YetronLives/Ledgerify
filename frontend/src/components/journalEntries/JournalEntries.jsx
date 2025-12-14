@@ -20,7 +20,7 @@ function JournalEntriesPage({
     updateAdjustingJournalEntryStatus 
 }) {
     const [isCreating, setIsCreating] = useState(false);
-    const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' ? 'Pending Review' : 'Approved');
+    const [viewStatus, setViewStatus] = useState(currentUser.role === 'Manager' | 'Accountant' ? 'Pending Review' : 'Approved');
     const [searchTerm, setSearchTerm] = useState('');
     const [amountFilter, setAmountFilter] = useState('');
     const [startDate, setStartDate] = useState(null);
